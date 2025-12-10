@@ -1,0 +1,33 @@
+% From mitthesis package
+% Version: 1.01, 2023/06/19
+% Documentation: https://ctan.org/pkg/mitthesis
+%
+% The abstract environment creates all the required headers and footnote. 
+% You only need to add the text of the abstract itself.
+%
+% Approximately 500 words or less; try not to use formulas or special characters
+% If you don't want an initial indentation, do \noindent at the start of the abstract
+\begin{abstract}
+
+\noindent
+Accurate understanding and querying of historical legal property documents remains a significant challenge for urban planning research. These records typically exist only in analog format—scanned images with inconsistent quality, archaic language, and no structured metadata. This limitation severely hinders systematic analysis of how discriminatory housing practices, particularly racial covenants, shaped city development patterns. While researchers have begun applying Generative AI systems to assist with legal documentation work,\footnote{Stanford Digital Humanities, \textit{STARA: Stanford Text Analysis for Racial Agreements}, 2024. Available at \url{https://dho.stanford.edu/wp-content/uploads/STARA.pdf}.} fundamental challenges persist in retrieval accuracy, model hallucination, and reliable extraction of structured facts from unstructured historical text.
+
+Using racial covenant analysis as our test case, this thesis addresses two interconnected challenges. \textbf{Information Extraction}: How can we accurately extract structured spatio-temporal information from degraded historical documents? \textbf{Reasoning at Scale}: How can retrieval systems maintain accuracy when answering complex queries requiring multi-hop reasoning across thousands of documents with temporal and spatial constraints?
+
+To address the first challenge, we developed a document processing pipeline and applied it to 569 historical deed records from a testing subset of the Massachusetts Covenants Project, spanning \hl{1861--1930} in North Middlesex County. Our pipeline integrates optical character recognition, named entity extraction, and geographic information systems to transform scanned deeds into structured spatio-temporal data. The case study demonstrates successful extraction of policy-relevant keywords and accurate geolocation of \hl{$76.3\%$} of documents containing geographic information, proving the effectiveness of this approach for systematically analyzing discriminatory housing patterns. The pipeline is released as an open-source tool\footnote{Available at \url{https://github.com/lauyihong/deeds_pipeline}.} and is currently being packaged for deployment for MassHousing (a state affordable housing agency) to support ongoing collaborative research.
+
+To address the second challenge, we pioneer the application of a Graph RAG (Graph-based Retrieval-Augmented Generation) framework, optimizing its knowledge graph structure to specifically encode the spatio-temporal (ST) relationships inherent in historical deeds. Through controlled experiments on 2,000 synthetic documents mirroring real deed characteristics, we demonstrate that our ST-optimized Graph RAG implementation achieves an F1 score of $0.598$ compared to $0.007$ for traditional vector-based RAG—an improvement exceeding $8,442\%$. Notably, vector RAG performance degrades by $92\%$ when scaling from 100 to 2,000 documents, while our method maintains stable accuracy. We further benchmarked performance across a five-level hierarchy, noting that temporal reasoning queries saw the highest improvement ($+12,900\%$) and highlighting the critical role of graph construction and query parsing for complex ST tasks.
+
+These findings establish the optimized Graph RAG architecture as an essential tool for historical document analysis in urban planning research, with broader implications for legal document review, housing policy analysis, and any domain requiring structured, scalable reasoning over large archival collections.
+
+\end{abstract}
+
+%% ============================================
+%% NOTES:
+%% - STARA reference: footnote style (per template)
+%% - GitHub: integrated naturally as contribution
+%% - Requires \usepackage{url} or \usepackage{hyperref} in preamble
+%% - CONFIRM: Is 76.3% the correct number? (marked with \hl{})
+%% 
+%% WORD COUNT: ~400 words ✓
+%% ============================================

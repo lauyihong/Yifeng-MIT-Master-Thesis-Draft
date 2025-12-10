@@ -1,0 +1,68 @@
+% Sample thesis committee page for mitthesis.cls
+% Version 1.01, 2024/10/08
+%
+% This page is not required by the MIT Libraries, but some departments require it.
+%
+% Insert between title page and abstract page. 
+% Format this page in any way that you like.  
+% Add supervisor titles, degrees, and departments as appropriate.
+
+%%%%% FORMATTING COMMANDS %%%%%%%%%%%%%%%%%%
+
+%% Format title
+\NewDocumentCommand\CommitteePageTitle{m}{
+	\vspace*{75pt}%36pt}
+	\IfPackageLoadedTF{microtype}
+		{\textls*{\Large\textbf{\MakeUppercase{#1}}}}
+		{{\Large\textbf{\MakeUppercase{#1}}}}%
+	\pdfbookmark[0]{#1}{Committee}%
+	\vspace*{10pt}%
+}
+% \textls* produces additional letter separation (appropriate for capitalized display text),
+% PROVIDED THAT \usepackage{microtype} has been loaded in the preamble. 
+% The extra space added is 100/1000 em (adjustable, see package documentation).
+
+%% Format committee member subheadings
+\NewDocumentCommand\Role{m}{
+	\vspace*{50pt}%25pt}
+	\IfPackageLoadedTF{microtype}
+		{\textls*{\large{\textsc{#1}}}}
+		{{\large\textsc{#1}}}%
+	\vspace*{12pt}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{flushright}
+
+\CommitteePageTitle{Thesis committee}
+
+\Role{Thesis Supervisors}
+
+ \textbf{Sarah E. Williams} \\
+ {\itshape
+ Professor of Technology and Urban Planning \\
+    Department of Urban Studies and Planning \\
+ } 
+
+
+ \textbf{Manish Raghavan} \\
+ {\itshape
+ Drew Houston (2005) Career Development Professor \\
+ Department of Electrical Engineering and Computer Science \\
+ and Sloan School of Management \\
+ }
+
+
+\Role{Thesis Reader}
+
+ \textbf{Catherine D'Ignazio} \\
+ {\itshape
+   Associate Professor of Urban Science and Planning \\
+   Department of Urban Studies and Planning \\[18pt]
+ }
+
+
+\end{flushright}
+
+\cleardoublepage

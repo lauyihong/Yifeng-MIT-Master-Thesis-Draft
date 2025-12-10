@@ -1,0 +1,57 @@
+% Chapter 1: Introduction
+% Master's Thesis - Yifeng
+% Draft Version 1.0 - DRAFT WITH NOTES
+
+\chapter{Introduction}\label{ch:introduction}
+
+% === 1.1 Problem Background ===
+\section{Historical Context and Motivation}
+
+Racial restrictive covenants—legal clauses embedded in property deeds that prohibited sale or rental to specific racial or ethnic groups—were a pervasive tool of housing segregation in the United States throughout the early-to-mid twentieth century. Although the Supreme Court ruled such covenants uneforceable in \textit{Shelley v. Kraemer} (1948), their legacy persists in urban spatial patterns observable today. Understanding where, when, and how these covenants proliferated is essential for urban planning research, housing policy analyssi, and ongoing efforts toward equitable development.
+
+\hl{[EXPAND: Add 1-2 paragraphs on MA specific context, cite Rothstein Color of Law, mention MassHousing collaboration]}
+
+% === 1.2 Technical Challenges ===
+\section{Challenges in Historical Document Analysis}
+
+The systematic analysis of historical deed records presents two interrelated techincal challenges that existing methods fail to adequately address.
+
+\subsection{Information Extraction from Degraded Documents}
+
+Historical deeds exist primarily as scanned images with variable quality, archaic typography, and inconsistent formatting. Extracting structured spatio-temporal information—locations, dates, parties, covenant presense—requires robust pipelines that can handle OCR errors, historical language patterns, and ambiguous geographic references.
+
+\hl{[ADD: specific examples of extraction difficulties, maybe include a figure showing sample deed image]}
+
+\subsection{Multi-Hop Reasoning at Scale}
+
+Even when information is successfully extracted, answering complex queries about historical patterns requires reasoning across multiple documents with temporal and spatial constraints. Questions such as "Which properties in subdivision X were encumbered by covenants before 1930?" or "Did covenant adoption on Oak Street precede or follow neighboring streets?" demand retrieval systems capable of multi-hop inference—a capability fundementally lacking in traditional vector-based approaches.
+
+\hl{[ADD: concrete example queries from the benchmark]}
+
+
+% === 1.3 Contributions ===
+\section{Thesis Contributions}
+
+This thesis makes two primary contributons addressing the challenges outlined above:
+
+\paragraph{Contribution 1: Document Processing Pipeline and Case Study.}
+We develop an end-to-end pipeline for extracting structured spatio-temporal data from historical deed documents and apply it to 569 records from the Massachusetts Covenants Project. The pipeline integrates OCR, named entity extraction, and geographic information systems, achieving 76.3\% geolocation accuracy. The tool is released as open-source software and is being packaged for deployement with MassHousing.
+
+\paragraph{Contribution 2: Graph RAG Framework for Spatio-Temporal Reasoning.}
+We design and evaluate a Graph RAG architecture that encodes temporal and spatial relationships in a knowledge graph structure, enabling multi-hop reasoning over document collections. Through controlled experiements on synthetic data, we demonstrate that Graph RAG outperforms traditional vector RAG by over 8,442\% on F1 score at scale, with particularly strong improvements on temporal reasoning (+12,900\%) and spatio-temporal joint queries.
+
+
+% === 1.4 Thesis Structure ===
+\section{Thesis Organization}
+
+This thesis is organized into six chapters addressing the dual challenges of information extraction and reasoning at scale for historical legal document analysis.
+
+Following this introduction, Chapter~\ref{ch:related-work} reviews related work spanning four areas: the evolution of retrieval-augmented generation systems from basic vector search to graph-enhanced architectures; specific Graph RAG implementations including Microsoft GraphRAG, LightRAG, and HippoRAG; benchmarks and methods for multi-hop reasoning and temporal question answering; and prior work on legal and historical document analysis using natural language processing techniques.
+
+Chapter~\ref{ch:case-study} presents our first contribution through a case study of the Massachusetts Covenants Project. We describe the dataset of 569 historical deed records spanning 1861--1930 from North Middlesex County, detail the document processing pipeline from OCR through geographic information extraction, and present findings on covenant prevalence, spatial clustering, and temporal patterns. This chapter demonstrates the practical applicability of our extraction approach and establishes the real-world context motivating the technical framework developed subsequently.
+
+Chapter~\ref{ch:graph-rag} addresses our second contribution by presenting a systematic comparison of Vector RAG and Graph RAG architectures for spatio-temporal reasoning tasks. We describe the synthetic data generation strategy designed to mirror real deed document characteristics, introduce a five-level benchmark hierarchy spanning single-hop lookup through conflict detection, and present experimental results demonstrating Graph RAG's substantial advantages at scale. The chapter also analyzes the critical role of query parsing in achieving strong performence on complex spatio-temporal queries.
+
+Chapter~\ref{ch:discussion} synthesizes findings from both contributions, discussing how the case study and framework evaluation complement each other, identifying appropriate use cases for Graph RAG versus simpler retrieval approaches, and acknowledging limitations of our current work including the use of synthetic rather than real data for the framework evaluation.
+
+Finally, Chapter~\ref{ch:conclusion} summarizes our key findings and their implications for urban planning research, legal document analysis, and retrieval system design, while outlining directions for future work including integration of the processing pipeline with the Graph RAG framework and extension to larger document corpora.

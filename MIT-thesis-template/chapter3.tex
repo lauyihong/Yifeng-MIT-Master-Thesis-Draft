@@ -1,0 +1,188 @@
+% Chapter 3: Case Study - MA Covenants Analysis
+% Master's Thesis - Yifeng  
+% Draft Version 1.0 - FRAMEWORK WITH NOTES
+
+\chapter{Case Study: Massachusetts Covenants Document Analysis}\label{ch:case-study}
+
+This chapter presents our first contribution: a document processing pipeline applied to historical deed records from the Massachusetts Covenants Project. We describe the dataset, detail the extraction pipeline, and present findings demonstrating the system's effectiveness for systematic analysis of discriminatory housing patterns.
+
+% ============================================
+% 3.1 Dataset Description
+% ============================================
+\section{Dataset Description}\label{sec:dataset}
+
+\subsection{The Massachusetts Covenants Project}
+
+Background on MassHousing collaboration, project goals, broader dataset context (9300 around total docs, 2300 around docs contain manually review result
+
+\subsection{Testing Subset Characteristics}
+
+Our analysis focuses on a testing subset of 569 deed records from North Middlesex County spanning 1861--1930.
+
+[ADD SAMPLE]
+
+\begin{table}[t]
+\caption{Dataset characteristics}\label{tab:dataset-stats}
+\centering
+\begin{tabular}{lc}
+\toprule
+\textbf{Characteristic} & \textbf{Value} \\
+\midrule
+Total documents & 569 \\
+Geographic scope & North Middlesex County, MA \\
+Temporal range & 1861--1930 \\
+{TODO: Documents with covenants} & {TODO: X (\%?)} \\
+{TODO: Average pages per deed} & {TODO: [X]} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ============================================
+% 3.2 Document Processing Pipeline
+% ============================================
+\section{Document Processing Pipeline}\label{sec:pipeline}
+
+Figure~\ref{fig:pipeline} illustrates our end-to-end pipeline from scanned deed images to structured spatio-temporal data.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{MIT-thesis-template/figures/document processing pipeline.png}
+\caption{Document processing pipeline architecture.}\label{fig:pipeline}
+\end{figure}
+
+\subsection{Optical Character Recognition}
+
+[TODO: [OCR approach - which engine? Tesseract? Azure? preprocessing steps, handling of historical fonts]]
+
+\subsection{Named Entity Extraction}
+
+[TODO: [NER for dates, locations, person names - rule-based vs ML? SpaCy? handling archaic language]]
+
+\subsection{Geographic Information Extraction}
+
+[TODO: [Plan Book references, address parsing, geocoding approach, GIS integration]]
+
+\subsection{Covenant Detection}
+
+[TODO: [Keyword matching? Classification model? How covenant presence is determined]]
+
+\subsection{Implementation Details}
+
+The pipeline is implemented in Python and released as open-source software.\footnote{Available at \url{https://github.com/lauyihong/deeds_pipeline}.}
+
+[TODO: [extract from README documents, Key libraries used, runtime performance, deployment considerations for MassHousing]]
+
+
+% ============================================
+% 3.3 Results and Findings
+% ============================================
+\section{Extraction Results and Findings}\label{sec:findings}
+
+\subsection{Validation Methodology}
+
+To evaluate pipeline performance, we constructed a ground truth dataset of 111 manually verified deed addresses with geocoded coordinates. We then assessed the pipeline outputs against four binary metrics:
+
+\begin{enumerate}
+    \item \textbf{Town Match}: Whether the pipeline's extracted town matches the manually verified city.
+    \item \textbf{Street Match}: Whether the manual street name appears in the pipeline's scraped street list.
+    \item \textbf{Has Geolocation}: Whether the pipeline produces valid latitude/longitude coordinates (not null or 0,0).
+    \item \textbf{In Radius}: Whether the ground truth coordinates fall within the pipeline's geographic cluster radius.
+\end{enumerate}
+
+Of the 111 ground truth deeds, 102 were successfully matched to pipeline outputs for evaluation.
+
+\subsection{Extraction Performance}
+
+Table~\ref{tab:extraction-perf} summarizes extraction accuracy across the four validation metrics.
+
+\begin{table}[t]
+\caption{Pipeline validation results (n=102 matched deeds)}\label{tab:extraction-perf}
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Metric} & \textbf{Pass} & \textbf{Rate} \\
+\midrule
+Town Match & 71/102 & 69.6\% \\
+Street Match & 64/102 & 62.7\% \\
+Has Geolocation & 72/102 & 70.6\% \\
+In Radius & 70/102 & 68.6\% \\
+\midrule
+\textbf{All 4 Pass} & 58/102 & 56.9\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Error Analysis}
+
+We conducted a systematic analysis of pipeline failures to identify root causes and inform future improvements.
+
+\paragraph{Missing Geolocation (30 deeds).} The most common failure mode was absence of valid coordinates. Of these, 20 deeds failed because the OCR stage could not extract plan book or page references from the scanned document, leaving no street information to geocode. The remaining 10 deeds had coordinates defaulting to (0,0) due to geocoding service failures.
+
+\paragraph{Incorrect Street Extraction (18 deeds).} In these cases, the pipeline extracted an incorrect plan book/page combination from the OCR text, resulting in streets scraped from unrelated subdivisions. For example, Deed 187 contained the OCR text ``Book of Plans 57, Plan 67'' referencing Varnum Town in Dracut, but the pipeline incorrectly selected Book 60, Page 67 (a Chelmsford subdivision), yielding ``CHELMSFORD ST'' instead of the correct ``HILLTOP RD.''
+
+\paragraph{Town Extraction Failures (31 deeds).} The pipeline returns ``UNKNOWN'' when geocoding fails to resolve a valid municipality. Additionally, some historical town names lack mappings to modern equivalents---for instance, ``Varnum Town'' historically referred to what is now part of Dracut, but this mapping was not present in our gazetteer.
+
+\subsection{Discussion of Validation Results}
+
+The raw pass rates in Table~\ref{tab:extraction-perf} conflate two distinct failure modes: (1) upstream OCR failures that prevent any geographic extraction, and (2) errors in the extraction pipeline itself. To isolate pipeline performance from OCR limitations, we compute accuracy conditional on successful geographic information extraction.
+
+Of the 102 evaluated deeds, 76 contained extractable geographic information (plan book references or address text). Among these, 58 passed all four validation metrics, yielding a \textbf{conditional accuracy of 76.3\%} (58/76). This metric better reflects the pipeline's extraction capability given usable input, as the 26 deeds without geographic information represent OCR failures rather than pipeline errors.
+
+The remaining 23.7\% of failures among deeds with geographic information stem from two tractable issues: plan book selection ambiguity when multiple references exist in the OCR text, and incomplete historical town name mappings in our gazetteer. Both represent engineering improvements for future iterations rather than fundamental limitations.
+
+[TODO: Add comparison to baseline or prior work if available]
+
+\subsection{Temporal Distribution}
+
+[TODO: [Findings on when covenants were most common, peak years, trends over time]]
+
+\begin{figure}[t]
+\centering
+% \includegraphics[width=0.8\textwidth]{figures/temporal_distribution.pdf}
+[TODO: [INSERT: Histogram or line chart of covenant frequency by year/decade]]
+\caption{Temporal distribution of racial covenants in North Middlesex County.}\label{fig:temporal-dist}
+\end{figure}
+
+\subsection{Spatial Patterns}
+
+[TODO: [Geographic clustering, which areas had highest concentration, relationship to demographics]]
+
+\begin{figure}[t]
+\centering
+% \includegraphics[width=0.8\textwidth]{figures/spatial_map.pdf}
+[TODO: [INSERT: Map visualization of covenant locations]]
+\caption{Spatial distribution of identified racial covenants.}\label{fig:spatial-map}
+\end{figure}
+
+\subsection{Covenant Language Patterns}
+
+[TODO: [Common phrasings found, evolution of language over time, targeted groups]]
+
+
+% ============================================
+% 3.4 Application and Urban Planning Implications
+% ============================================
+\section{Application Value and Urban Planning Implications}\label{sec:implications-p1}
+
+\subsection{Enabling Systematic Historical Analysis}
+
+How this tool enables research that was previously manual/infeasible
+
+\subsection{Deployment with MassHousing}
+
+The current status of packaging, planned use cases, and collaboration details. \hl{waiting for the response from MassHousing for next Monday}
+
+\subsection{Broader Applicability}
+
+[TODO: [Generalization to other counties, other document types, limitations]]
+
+
+% ============================================
+% 3.5 Summary
+% ============================================
+\section{Summary}
+
+This chapter demonstrated a practical document processing pipeline achieving 76.3\% geolocation accuracy on 569 historical deed records. The case study reveals [TODO: [key finding 1]] and [TODO: [key finding 2]], establishing the foundation for systematic analysis of discriminatory housing patterns. The pipeline's release as open-source software and ongoing deployment with MassHousing represents a tangible contributon to urban planning research infrastructure.
+
+The findings from this case study motivate the technical investigation in Chapter~\ref{ch:graph-rag}: given extracted spatio-temporal data, how can retrieval systems effectively answer complex multi-hop queries about historical patterns?

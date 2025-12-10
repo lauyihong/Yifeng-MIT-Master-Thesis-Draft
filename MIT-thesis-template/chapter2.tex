@@ -1,0 +1,98 @@
+% Chapter 2: Related Work
+% Master's Thesis - Yifeng
+% Draft Version 1.0 - FRAMEWORK ONLY
+
+\chapter{Related Work}\label{ch:related-work}
+
+This chapter reviews prior work across four areas relevant to our research: retrieval-augmented generation systems, graph-based retrieval methods, multi-hop and temporal reasoning benchmarks, and legal document analysis.
+
+% ============================================
+% 2.1 RAG Evolution
+% ============================================
+\section{Retrieval-Augmented Generation}\label{sec:rag-evolution}
+
+\hl{[Evolution of RAG from Lewis et al. 2020 to current, most recent work from Gengcheng Mai(Spatial RAG)]}
+
+\subsection{Vector-Based Retrieval}
+
+\hl{[Dense retrieval, embedding models, limitations for structured reasoning]}
+
+\subsection{Hybrid Retrieval Approaches}
+
+\hl{[Combining sparse and dense, BM25 + embeddings]}
+
+\subsection{Limitations for Complex Reasoning}
+
+\hl{[Why vector similarity fails for multi-hop, cite empirical studies]}
+
+
+% ============================================
+% 2.2 Graph RAG Methods  
+% ============================================
+\section{Graph-Enhanced Retrieval}\label{sec:graph-rag-methods}
+
+\hl{[Intro paragraph on knowledge graph integration with LLMs]}
+
+\subsection{Microsoft GraphRAG}
+
+\hl{[Edge et al. 2024, community detection, hierachical summarization, 70-80\% win rate on global queries]}
+
+\subsection{LightRAG}
+
+Guo et al. EMNLP 2025, 6x cheaper, dual-level retrieval, 80\%+ on legal docs
+
+\subsection{HippoRAG}
+
+Gutierrez et al. NeurIPS 2024, neurobiological inspiration, 20\% improvement on multi-hop, 10-30x cheaper than iterative
+
+\subsection{Other Approaches}
+
+SubgraphRAG ICLR 2025, Neo4j GraphRAG, comparison table
+
+
+% ============================================
+% 2.3 Multi-Hop and Temporal QA
+% ============================================
+\section{Multi-Hop Reasoning and Temporal Question Answering}\label{sec:multihop-temporal}
+
+\hl{[Intro on why multi-hop is hard, temporal adds another dimension]}
+
+\subsection{Multi-Hop QA Benchmarks}
+
+\hl{[HotpotQA EMNLP 2018, MuSiQue TACL 2022, MultiHop-RAG COLM 2024]}
+
+\subsection{Temporal Knowledge Graph QA}
+
+\hl{[CronKGQA ACL 2021, TempoQR AAAI 2022, EXAQT CIKM 2021, TimelineKGQA]}
+
+\subsection{Spatio-Temporal Reasoning}
+
+\hl{[Limited prior work, SSTKG, GeoQA, gap our work addresses]}
+
+
+% ============================================
+% 2.4 Legal/Historical Document Analysis
+% ============================================
+\section{Legal and Historical Document Analysis}\label{sec:legal-docs}
+
+\hl{[NLP for legal domain, historical document digitization challenges]}
+
+\subsection{Legal NLP Systems}
+
+\hl{[Legal-BERT, LexGLUE benchmark, contract analysis]}
+
+\subsection{Historical Document Processing}
+
+\hl{[OCR challenges, archaic language, Stanford STARA project]}
+
+\subsection{Racial Covenant Research}
+
+\hl{[Mapping Prejudice project, Segregated Seattle, prior manual efforts, gap in automated analysis]}
+
+
+% ============================================
+% 2.5 Summary and Positioning
+% ============================================
+\section{Summary and Research Gap}
+
+\hl{[Position our work: first systematic Graph RAG evaluation on spatio-temporal legal documents, combining extraction pipeline with reasoning framework]}

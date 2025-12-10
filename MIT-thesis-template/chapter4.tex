@@ -1,0 +1,370 @@
+% Chapter 4: Graph RAG vs Vector RAG Framework
+% Master's Thesis - Yifeng
+% Draft Version 1.0
+
+\chapter{Graph RAG versus Vector RAG for Spatio-Temporal Reasoning}\label{ch:graph-rag} 
+
+Traditional Retrieval-Augmented Generation (RAG) systems rely on vector similarity search to retrieve relevant document chunks, an approach that works well for single-hop factual queries but fundamentally struggles with complex reasoning tasks requiring relationship traversal across multiple documents. In this chapter, we present a systematic comparison between Vector RAG and Graph RAG architectures on spatio-temporal reasoning tasks, demonstrating that graph-structured retrieval achieves dramatically superior performance when queries involve temporal constraints, spatial relationships, and multi-hop inference.
+
+Our experimental framework uses synthetic data that mirrors the characteristics of historical deed documents, enabling controlled evaluation across five levels of reasoning complexity. The results show that Graph RAG outperforms Vector RAG by over 8,442\% on F1 score at scale, with the performance gap widening as document corpus size increases.
+
+
+\section{Problem Formulation}\label{sec:problem-formulation}
+
+We formalize the spatio-temporal document reasoning task as follows. Given a corpus $\mathcal{D} = \{d_1, d_2, \ldots, d_n\}$ of historical deed documents, where each document $d_i$ contains:
+\begin{itemize}
+    \item Temporal attributes $T_i = \{t_{\text{signed}}, t_{\text{recorded}}, t_{\text{effective}}\}$
+    \item Spatial attributes $S_i = \{\text{street}, \text{subdivision}, \text{town}, \text{county}\}$
+    \item Entity mentions $E_i = \{\text{grantor}, \text{grantee}, \text{witnesses}\}$
+    \item Legal content $C_i$ including covenant clauses and restrictions
+\end{itemize}
+
+The task is to answer natural language queries $q$ that may require:
+\begin{enumerate}
+    \item \textbf{Temporal reasoning}: Filtering or ordering documents based on date constraints (e.g., ``before 1930'', ``between 1924 and 1939'')
+    \item \textbf{Spatial reasoning}: Traversing geographic relationships (e.g., ``deeds on the same street'', ``within subdivision X'')
+    \item \textbf{Multi-hop inference}: Combining multiple relationship traversals to answer compound queries
+    \item \textbf{Conflict detection}: Identifying inconsistencies across document annotations
+\end{enumerate}
+
+Formally, a retrieval system $\mathcal{R}$ takes query $q$ and corpus $\mathcal{D}$ as input and returns a set of relevant documents $\mathcal{R}(q, \mathcal{D}) \subseteq \mathcal{D}$. The challenge lies in correctly handling queries where relevance depends not on lexical similarity but on structured relationships between documents.
+
+
+\section{Methodology}\label{sec:methodology}
+
+\subsection{Synthetic Data Generation}\label{sec:data-generation}
+
+To enable controlled experimentation with known ground truth, we developed a synthetic data generator that produces deed documents mimicking the statistical properties of real Massachusetts historical deeds. The generator creates documents with the following characteristics:
+
+\paragraph{Temporal Distribution.} Document signing dates follow a historically-informed distribution spanning 1910--1950, with peak years at 1924, 1926, and 1942, reflecting actual patterns in restrictive covenant adoption~\cite{rothstein2017}. \hl{Add citation for MassHousing}
+
+\paragraph{Spatial Hierarchy.} The generator creates a three-level spatial hierarchy:
+\begin{equation}
+    \text{County} \rightarrow \text{Town} \rightarrow \text{Subdivision} \rightarrow \text{Street} \rightarrow \text{Deed}
+\end{equation}
+with configurable parameters for street overlap across deeds (default: 60\%) to ensure meaningful spatial relationships.
+
+\paragraph{Conflict Injection.} To evaluate conflict detection capabilities, we inject controlled inconsistencies:
+\begin{itemize}
+    \item Date conflicts: 5--8\% of documents contain mismatched temporal annotations
+    \item Review status conflicts: 10\% of documents have inconsistent review flags
+\end{itemize}
+
+\paragraph{Scale Parameters.} Experiments were conducted at two scales: 100 documents for rapid iteration and 2,000 documents for scale analysis. Each configuration was run with 3--5 independent random seeds to ensure statistical reliability.
+
+Table~\ref{tab:data-params} summarizes the key generation parameters.
+
+\begin{table}[t]
+\caption{Synthetic data generation parameters}\label{tab:data-params}
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Parameter} & \textbf{Small Scale} & \textbf{Large Scale} \\
+\midrule
+Number of documents & 100 & 2,000 \\
+Temporal range & \multicolumn{2}{c}{1910--1950} \\
+Street overlap rate & \multicolumn{2}{c}{60\%} \\
+Date conflict rate & \multicolumn{2}{c}{5--8\%} \\
+Review conflict rate & \multicolumn{2}{c}{10\%} \\
+Peak years & \multicolumn{2}{c}{1924, 1926, 1942} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Knowledge Graph Schema Design}\label{sec:kg-schema}
+
+The knowledge graph schema encodes both entity information and the spatio-temporal relationships essential for complex reasoning. We define seven node types and eight edge types, as illustrated in Figure~\ref{fig:kg-schema}.
+
+\paragraph{Node Types.}
+\begin{itemize}
+    \item \texttt{Deed}: Primary document entity with attributes for content, covenant presence, and review status
+    \item \texttt{Street}, \texttt{Subdivision}, \texttt{Town}, \texttt{County}: Spatial hierarchy nodes
+    \item \texttt{Person}: Grantor, grantee, and witness entities
+    \item \texttt{TimePoint}: Normalized temporal entities enabling date-based traversal
+\end{itemize}
+
+\paragraph{Edge Types.}
+\begin{itemize}
+    \item \texttt{MENTIONS\_STREET}, \texttt{IN\_SUBDIVISION}, \texttt{IN\_TOWN}, \texttt{IN\_COUNTY}: Spatial containment edges
+    \item \texttt{SIGNED\_ON}: Connects deeds to temporal nodes
+    \item \texttt{SHARES\_STREET}: Computed edge linking deeds that reference the same street
+    \item \texttt{PRECEDES}: Temporal ordering edge between \texttt{TimePoint} nodes
+    \item \texttt{PARTY\_TO}: Links persons to deeds
+\end{itemize}
+
+This schema enables efficient traversal for queries such as ``find all deeds sharing a street with deed X signed before 1930,'' which requires spatial hop (\texttt{SHARES\_STREET}) followed by temporal filtering (\texttt{SIGNED\_ON} $\rightarrow$ \texttt{PRECEDES}).
+
+\begin{figure}[t]
+\centering
+% \includegraphics[width=0.8\textwidth]{figures/kg_schema.pdf}
+\hl{[INSERT: Knowledge graph schema diagram]}
+\caption{Knowledge graph schema for spatio-temporal deed analysis. Solid edges represent direct relationships; dashed edges represent computed relationships.}\label{fig:kg-schema}
+\end{figure}
+
+
+\subsection{Five-Level Benchmark Question Hierarchy}\label{sec:benchmark}
+
+We design a five-level benchmark hierarchy that systematically increases reasoning complexity, enabling fine-grained analysis of where graph-based retrieval provides advantages. 
+
+\paragraph{Level 1: Single-Hop Lookup.} Direct attribute queries requiring no relationship traversal. 
+\begin{quote} 
+    \textit{Example}: ``Find all deeds recorded in 1924.''
+\end{quote}
+
+\paragraph{Level 2: Temporal Reasoning.} Queries involving date ranges, ordering, or temporal constraints.
+\begin{quote}
+    \textit{Example}: ``List deeds signed between 1926 and 1939.''
+\end{quote}
+
+\paragraph{Level 3: Spatial Multi-Hop.} Queries requiring traversal of spatial relationships across documents.
+\begin{quote}
+    \textit{Example}: ``Which deeds share streets with deed\_0001?''
+\end{quote}
+
+\paragraph{Level 4: Spatio-Temporal Joint.} Queries combining both spatial and temporal constraints, requiring multi-hop reasoning across both dimensions.
+\begin{quote}
+    \textit{Example}: ``How many covenants exist in Pine Valley subdivision during the 1910s?''
+\end{quote}
+
+\paragraph{Level 5: Conflict Detection.} Queries requiring identification of inconsistencies or contradictions across document annotations.
+\begin{quote}
+    \textit{Example}: ``Identify deeds with inconsistent date annotations between signed and recorded dates.''
+\end{quote}
+
+For each level, I've generate \hl{[X]} benchmark questions with deterministic ground-truth answers computed directly from the synthetic data generation process, ensuring evaluation integrity.
+
+
+\subsection{Vector RAG Baseline}\label{sec:vector-rag}
+
+Our Vector RAG baseline follows standard practice in retrieval-augmented generation~\cite{lewis2020rag}. The pipeline consists of:
+\paragraph{Document Chunking.} Each deed document is split into chunks 
+of 500 characters with 100-character overlap using recursive character splitting.
+
+\paragraph{Embedding.} Chunks are embedded using OpenAI's 
+\texttt{text-embedding-3-small} model (1536 dimensions). All embeddings 
+are stored in a vector index supporting efficient approximate nearest 
+neighbor search.
+
+\paragraph{Retrieval.} Given a query $q$, we retrieve the top-5 most 
+similar chunks by cosine similarity.
+
+
+\paragraph{Answer Generation.} Retrieved chunks are concatenated into a context window, and gpt-4o generates the final answer. 
+
+The fundamental limitation of this approach is that semantic similarity in embedding space does not capture structural relationships. A query about ``deeds sharing streets with deed\_0001'' will retrieve chunks semantically similar to the query text, not chunks from documents that actually share street references.
+
+
+\subsection{Graph RAG Implementation}\label{sec:graph-rag}
+
+We implement two versions of Graph RAG to analyze the importance of query parsing.
+
+\subsubsection{Graph RAG V1: Basic Graph Retrieval}
+
+The V1 system constructs a knowledge graph using NetworkX~\cite{networkx} and implements pattern-based query parsing:
+
+\paragraph{Graph Construction.} Documents are processed to extract entities and relationships according to the schema in Section~\ref{sec:kg-schema}. %Entity extraction uses \hl{[rule-based / NER model]} matching for dates, locations, and person names.
+
+\paragraph{Query Parsing.} Natural language queries are parsed using regular expressions to identify:
+\begin{itemize}
+    \item Temporal constraints (year mentions, date ranges)
+    \item Spatial entities (street names, subdivision references)
+    \item Target entity types (deed, person, location)
+\end{itemize}
+
+\paragraph{Graph Traversal.} Based on parsed constraints, the system executes graph traversal operations:
+\begin{enumerate}
+    \item Identify seed nodes matching query entities
+    \item Traverse relevant edge types based on query semantics
+    \item Apply filtering constraints (temporal, spatial)
+    \item Return matching document nodes
+\end{enumerate}
+
+\subsubsection{Graph RAG V2: Enhanced Query Parsing}
+
+V2 addresses V1's weakness in handling complex spatio-temporal queries through improved query understanding:
+
+\paragraph{Temporal Range Extraction.} Enhanced parsing correctly identifies decade references (``1910s'' $\rightarrow$ 1910--1919) and relative temporal expressions.
+
+\paragraph{Spatial Entity Resolution.} Improved matching of subdivision and street names, handling partial matches and common abbreviations.
+
+\paragraph{Query Type Classification.} Explicit classification of query type (temporal, spatial, joint, conflict) to select appropriate traversal strategy.
+
+The V1 $\rightarrow$ V2 improvements specifically target Level 4 (spatio-temporal joint) queries, where V1's basic parsing failed to correctly extract both constraint types simultaneously.
+
+
+\section{Experimental Setup}\label{sec:experimental-setup}
+
+\paragraph{Evaluation Metrics.} We evaluate retrieval performance using precision, recall, and F1 score against ground-truth document sets:
+\begin{align}
+    \text{Precision} &= \frac{|\text{Retrieved} \cap \text{Relevant}|}{|\text{Retrieved}|} \\
+    \text{Recall} &= \frac{|\text{Retrieved} \cap \text{Relevant}|}{|\text{Relevant}|} \\
+    \text{F1} &= 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}
+\end{align}
+
+\paragraph{Computational Environment.} Experiments were conducted on Ubuntu server with one RTX 4090
+
+\paragraph{Statistical Methodology.} All results report mean $\pm$ standard deviation across 3 independent runs with different random seeds for data generation.
+
+
+\section{Results and Analysis}\label{sec:results}
+
+\subsection{Overall Performance}
+
+Table~\ref{tab:main-results} presents the main experimental results at 2,000 document scale. Graph RAG V2 achieves an F1 score of 0.598, compared to 0.007 for Vector RAG---an improvement of over 8,442\%.
+
+\begin{table}[t]
+\caption{Overall retrieval performance on benchmark questions (2,000 documents, averaged over 3 runs)}\label{tab:main-results}
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Method} & \textbf{F1 Score} & \textbf{vs. Vector RAG} \\
+\midrule
+Vector RAG & $0.007 \pm 0.003$ & --- \\
+Graph RAG V1 & $0.444 \pm 0.042$ & +6,174\% \\
+Graph RAG V2 & $0.598 \pm 0.027$ & +8,352\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Scale Analysis}
+
+A critical finding is that Graph RAG maintains stable performance as corpus size increases, while Vector RAG degrades catastrophically. Table~\ref{tab:scale-results} shows this divergence.
+
+\begin{table}[t]
+\caption{Performance comparison across dataset scales}\label{tab:scale-results}
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Dataset Size} & \textbf{Vector RAG F1} & \textbf{Graph RAG V2 F1} & \textbf{Improvement} \\
+\midrule
+100 documents & 0.087 & 0.629 & +623\% \\
+2,000 documents & 0.007 & 0.598 & +8,443\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This result has significant practical implications: as document corpora grow, the relative advantage of graph-based retrieval increases dramatically. The Vector RAG F1 score drops by 92\% (0.087 $\rightarrow$ 0.007) when scaling from 100 to 2,000 documents, while Graph RAG V2 shows only a 5\% decrease (0.629 $\rightarrow$ 0.598).
+
+The explanation is straightforward: vector similarity search becomes increasingly noisy as more semantically similar but structurally irrelevant documents enter the corpus. Graph traversal, by contrast, follows explicit relationships regardless of corpus size.
+
+
+\subsection{Performance by Question Complexity Level}
+
+Table~\ref{tab:level-results} breaks down performance by benchmark level, revealing where graph-based retrieval provides the greatest advantages.
+
+\begin{table}[t]
+\caption{F1 scores by question complexity level (2,000 documents)}\label{tab:level-results}
+\centering
+\begin{tabular}{llcccc}
+\toprule
+\textbf{Level} & \textbf{Description} & \textbf{Vector} & \textbf{Graph V1} & \textbf{Graph V2} & \textbf{V2 Improv.} \\
+\midrule
+L1 & Single-hop lookup & 0.007 & 0.244 & 0.290 & +4,043\% \\
+L2 & Temporal reasoning & 0.006 & 0.780 & 0.780 & +12,900\% \\
+L3 & Spatial multi-hop & 0.007 & 0.687 & 0.530 & +7,471\% \\
+L4 & Spatio-temporal joint & 0.009 & 0.064 & 0.822 & +9,033\% \\
+L5 & Conflict detection & 0.006 & 0.440 & 0.440 & +7,233\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Several patterns emerge:
+
+\paragraph{Temporal Reasoning (L2) Shows Highest Graph RAG Performance.} Both V1 and V2 achieve F1 of 0.780 on temporal queries, a +12,900\% improvement over Vector RAG. This reflects the graph's ability to directly traverse temporal edges rather than relying on embedding similarity of date strings.
+
+\paragraph{Query Parsing is Critical for Spatio-Temporal Queries (L4).} The most striking result is L4 performance: V1 achieves only 0.064 F1, while V2 reaches 0.822---a 12$\times$ improvement from enhanced query parsing alone. This demonstrates that graph structure is necessary but not sufficient; correct interpretation of complex queries is equally important.
+
+\paragraph{Spatial Multi-Hop (L3) Shows V1 > V2 Anomaly.} Interestingly, V1 outperforms V2 on L3 queries (0.687 vs. 0.530). We hypothesize this results from V2's more aggressive query classification occasionally misrouting pure spatial queries. \hl{[INVESTIGATE: Confirm this hypothesis with error analysis]}
+
+\paragraph{Conflict Detection (L5) is Only Possible with Graph Structure.} Vector RAG fundamentally cannot detect annotation conflicts, as this requires comparing structured attributes across documents rather than semantic similarity.
+
+
+\subsection{Latency Analysis}
+
+Beyond accuracy, Graph RAG also demonstrates superior computational efficiency at scale. At 2,000 documents:
+\begin{itemize}
+    \item Graph RAG average query time: 1.1 seconds
+    \item Vector RAG average query time: 2.4 seconds
+\end{itemize}
+
+Graph traversal's efficiency stems from following indexed edges rather than computing similarity against all chunks. This advantage would increase further at larger scales.
+
+
+\subsection{Error Analysis}
+
+\hl{[TO ADD: Qualitative error analysis of failure cases for each method]}
+
+Common Vector RAG failure modes include:
+\begin{enumerate}
+    \item Retrieving semantically similar but structurally unrelated documents
+    \item Missing documents with relevant relationships but dissimilar surface text
+    \item Inability to handle negation or exclusion constraints
+\end{enumerate}
+
+Graph RAG V1 failures primarily occur in:
+\begin{enumerate}
+    \item Complex queries requiring multiple constraint types (addressed in V2)
+    \item Queries with ambiguous entity references
+\end{enumerate}
+
+
+\section{Discussion}\label{sec:ch4-discussion}
+
+\subsection{Implications for Legal Document Analysis}
+
+Our results demonstrate that graph-structured retrieval is essential for legal document analysis tasks involving spatio-temporal relationships. The 8,442\%+ improvement over vector baselines suggests that standard RAG approaches are fundamentally inadequate for this domain.
+
+The finding that scale exacerbates Vector RAG's limitations has particular relevance for real-world legal corpora, which may contain millions of documents. Our results predict that Vector RAG performance would continue degrading, while Graph RAG would maintain effectiveness.
+
+\subsection{The Critical Role of Query Parsing} 
+
+The V1 $\rightarrow$ V2 improvement on L4 queries (0.064 $\rightarrow$ 0.822) underscores that graph structure alone is insufficient. Effective Graph RAG requires:
+\begin{enumerate}
+    \item Appropriate schema design capturing domain relationships
+    \item Robust query parsing to extract structured constraints
+    \item Correct mapping from parsed constraints to graph traversal operations
+\end{enumerate}
+
+This suggests that domain-specific query understanding may be as important as graph construction for practical Graph RAG systems.
+
+\subsection{Limitations}
+
+Several limitations should be noted:
+
+\paragraph{Synthetic Data.} While our synthetic data mimics real deed document characteristics, validation on actual historical records remains necessary. Chapter~\ref{ch:case-study} addresses this through analysis of real Massachusetts covenants data.
+
+\paragraph{Schema Dependency.} Graph RAG performance depends on schema design quality. Poorly designed schemas may fail to capture relationships necessary for target queries.
+
+\paragraph{Construction Cost.} Knowledge graph construction requires entity extraction and relationship identification, adding computational overhead not present in vector-only approaches. \hl{[ADD: Quantify construction time if available]}
+
+
+\section{Summary}\label{sec:ch4-summary}
+
+This chapter presented a systematic comparison of Vector RAG and Graph RAG for spatio-temporal reasoning on legal documents. Key findings include:
+
+\begin{enumerate}
+    \item Graph RAG V2 outperforms Vector RAG by +8,352\% on F1 score at 2,000 document scale
+    \item Vector RAG performance degrades catastrophically with scale (92\% F1 drop from 100 to 2,000 docs), while Graph RAG remains stable
+    \item Temporal reasoning queries show the highest Graph RAG advantage (+12,900\%)
+    \item Query parsing quality is as important as graph structure, demonstrated by the 12$\times$ V1 $\rightarrow$ V2 improvement on spatio-temporal queries
+    \item Graph RAG is also faster (1.1s vs. 2.4s per query at scale)
+\end{enumerate}
+
+These results establish Graph RAG as the preferred architecture for complex reasoning over legal and historical document corpora, providing the methodological foundation for the case study analysis in Chapter~\ref{ch:case-study}.
+
+
+%% Nomenclature for this chapter (optional)
+\begin{nomenclature}[3em][Nomenclature for Chapter~\ref{ch:graph-rag}][section]
+\EntryHeading{Abbreviations}
+\entry{RAG}{Retrieval-Augmented Generation}
+\entry{KG}{Knowledge Graph}
+\entry{F1}{F1 Score (harmonic mean of precision and recall)}
+\entry{LLM}{Large Language Model}
+\EntryHeading{Symbols}
+\entry{$\mathcal{D}$}{Document corpus}
+\entry{$q$}{Natural language query}
+\entry{$\mathcal{R}$}{Retrieval system}
+\entry{$k$}{Number of retrieved documents}
+\end{nomenclature}
