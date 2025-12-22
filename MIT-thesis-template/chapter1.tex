@@ -1,57 +1,125 @@
 % Chapter 1: Introduction
 % Master's Thesis - Yifeng
-% Draft Version 1.0 - DRAFT WITH NOTES
+% Graph RAG for Spatio-Temporal Reasoning in Historical Legal Document Analysis
 
 \chapter{Introduction}\label{ch:introduction}
 
-% === 1.1 Problem Background ===
+% ============================================
+% 1.1 Historical Context and Motivation
+% ============================================
 \section{Historical Context and Motivation}
 
-Racial restrictive covenants—legal clauses embedded in property deeds that prohibited sale or rental to specific racial or ethnic groups—were a pervasive tool of housing segregation in the United States throughout the early-to-mid twentieth century. Although the Supreme Court ruled such covenants uneforceable in \textit{Shelley v. Kraemer} (1948), their legacy persists in urban spatial patterns observable today. Understanding where, when, and how these covenants proliferated is essential for urban planning research, housing policy analyssi, and ongoing efforts toward equitable development.
+Racial restrictive covenants---legal clauses embedded in property deeds that prohibited sale or rental to specific racial or ethnic groups---were a pervasive tool of housing segregation in the United States throughout the early-to-mid twentieth century. A typical covenant might read: ``This property shall not be sold, leased, or occupied by any person not of the Caucasian race.'' These private contractual restrictions operated alongside public policies such as redlining to systematically exclude Black, Asian, Jewish, and other minority families from predominantly white neighborhoods~\cite{rothstein2017color}.
 
-\hl{[EXPAND: Add 1-2 paragraphs on MA specific context, cite Rothstein Color of Law, mention MassHousing collaboration]}
+Although the Supreme Court ruled such covenants unenforceable in \textit{Shelley v. Kraemer} (1948), the covenants themselves were never removed from property records. They remain embedded in millions of deeds across the country, ghostly traces of a discriminatory past that continues to shape urban spatial patterns today. Research has demonstrated that neighborhoods historically subjected to racial covenants exhibit persistent disparities in homeownership rates, property values, health outcomes, and wealth accumulation~\cite{west2024lasting, sood2023long}. Understanding where, when, and how these covenants proliferated is therefore essential for urban planning research, housing policy analysis, and ongoing efforts toward equitable development.
 
-% === 1.2 Technical Challenges ===
+\subsection{The Massachusetts Context}
+
+Massachusetts presents a particularly compelling case for studying racial covenants. While the state is often perceived as progressive on civil rights issues, historical evidence suggests that racial covenants were widespread in its suburban developments during the early twentieth century. The \textbf{Massachusetts Covenants Project}, led by Professor Justin Steil at MIT in collaboration with \textbf{MassHousing} (the state's affordable housing agency), aims to systematically identify and document these covenants across the Commonwealth~\cite{steil2024macovenants}.
+
+The project operates within a broader national movement. Organizations such as Mapping Prejudice in Minnesota, the Mapping Inequality project, and Stanford's STARA initiative have pioneered methods for uncovering and publicizing racial covenants~\cite{delegard2020mapping, suranisuzgun2024}. These efforts combine archival research, crowdsourced verification, and increasingly, computational methods to process the vast quantities of historical records that would be infeasible to analyze manually.
+
+This thesis emerges from my participation in the \textbf{Crowd Sourced City} course at MIT, where students work directly with MassHousing and the Leventhal Map and Education Center to develop tools for covenant identification and public engagement. The course raises fundamental questions: How can we efficiently process thousands of historical deed scans? How can community members contribute to and benefit from this data? And how can computational systems answer complex questions about historical patterns of discrimination?
+
+
+% ============================================
+% 1.2 Challenges in Historical Document Analysis
+% ============================================
 \section{Challenges in Historical Document Analysis}
 
-The systematic analysis of historical deed records presents two interrelated techincal challenges that existing methods fail to adequately address.
+The systematic analysis of historical deed records presents two interrelated technical challenges that existing methods fail to adequately address.
 
 \subsection{Information Extraction from Degraded Documents}
 
-Historical deeds exist primarily as scanned images with variable quality, archaic typography, and inconsistent formatting. Extracting structured spatio-temporal information—locations, dates, parties, covenant presense—requires robust pipelines that can handle OCR errors, historical language patterns, and ambiguous geographic references.
+Historical deeds exist primarily as scanned images with highly variable quality. Documents from the early twentieth century present multiple extraction difficulties:
 
-\hl{[ADD: specific examples of extraction difficulties, maybe include a figure showing sample deed image]}
+\paragraph{Physical Degradation.} Many deed scans exhibit faded ink, water damage, torn edges, and uneven exposure. Pages may be yellowed or stained, reducing contrast between text and background.
+
+\paragraph{Archaic Typography and Language.} Deeds were often produced using typewriters with worn ribbons or handwritten in period scripts. Legal terminology has evolved significantly; phrases common in 1920s property law may be unfamiliar to modern readers and NLP systems trained on contemporary text.
+
+\paragraph{Inconsistent Formatting.} Unlike modern standardized forms, historical deeds vary widely in structure. Information about location, dates, and parties may appear in different positions across documents, making template-based extraction unreliable.
+
+\paragraph{Ambiguous Geographic References.} Historical street names, subdivision names, and property descriptions often do not match modern geographic databases. A deed might reference ``Lot 47 in the Shady Hill subdivision'' without providing coordinates or addresses recognizable to contemporary geocoding services.
+
+Figure~\ref{fig:deed-samples} illustrates the diversity of document quality in historical deed archives. The handwritten deed from 1888 (left) presents significant challenges for optical character recognition due to cursive script, inconsistent letter forms, and faded ink. The typewritten deed from 1951 (right) is more legible but still contains stamps, handwritten annotations, and formatting variations that complicate automated extraction.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/deedsample-886-16.jpg}
+        \caption{Handwritten deed from Book 886, Page 16 (late 19th century). The cursive script and variable ink quality make OCR extremely challenging.}
+        \label{fig:deed-handwritten}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/deedsample-1177-335.jpg}
+        \caption{Typewritten deed from Book 1177, Page 335 (1951). While more legible, it contains stamps, handwritten annotations, and inconsistent formatting.}
+        \label{fig:deed-typewritten}
+    \end{subfigure}
+    \caption{Sample historical deed documents from the Massachusetts Covenants Project illustrating the range of document quality and formatting challenges. Both documents are from Middlesex County.}
+    \label{fig:deed-samples}
+\end{figure}
+
+Extracting structured spatio-temporal information---locations, dates, parties, covenant presence---from these documents requires robust pipelines capable of handling OCR errors, historical language patterns, and geographic ambiguity. Current crowdsourced approaches, while valuable for verification, cannot scale to process the hundreds of thousands of deeds in state archives.
+
 
 \subsection{Multi-Hop Reasoning at Scale}
 
-Even when information is successfully extracted, answering complex queries about historical patterns requires reasoning across multiple documents with temporal and spatial constraints. Questions such as "Which properties in subdivision X were encumbered by covenants before 1930?" or "Did covenant adoption on Oak Street precede or follow neighboring streets?" demand retrieval systems capable of multi-hop inference—a capability fundementally lacking in traditional vector-based approaches.
+Even when information is successfully extracted into structured form, answering substantive research questions about historical patterns requires reasoning across multiple documents with temporal and spatial constraints. Consider the types of questions an urban planning researcher might pose:
 
-\hl{[ADD: concrete example queries from the benchmark]}
+\begin{itemize}
+    \item \textbf{Temporal queries:} ``Which properties were encumbered by covenants between 1920 and 1930?''
+    \item \textbf{Spatial queries:} ``How many covenants were recorded in the Pine Valley subdivision?''
+    \item \textbf{Spatio-temporal queries:} ``Did covenant adoption on Oak Street precede or follow neighboring streets in the 1910s?''
+    \item \textbf{Multi-hop reasoning:} ``Which deeds share streets with properties that had covenants before 1925?''
+    \item \textbf{Conflict detection:} ``Are there properties with inconsistent date annotations across different records?''
+\end{itemize}
+
+These questions demand retrieval systems capable of \textbf{multi-hop inference}---traversing relationships across documents while respecting strict temporal and spatial constraints. Traditional vector-based retrieval systems, which dominate current Retrieval-Augmented Generation (RAG) architectures, are fundamentally ill-suited for such tasks.
+
+\paragraph{The Limitations of Vector RAG.} Vector RAG systems operate by embedding text chunks into high-dimensional vector spaces and retrieving the most semantically similar chunks for a given query. This approach excels at finding documents that ``talk about similar things'' but fails catastrophically when queries require logical rather than semantic matching.
+
+For example, when asked ``How many covenants were recorded in Pine Valley during the 1910s?'', a vector RAG system might retrieve documents mentioning ``Pine Valley'' or ``1910s'' based on semantic similarity. However, it has no mechanism to:
+\begin{enumerate}
+    \item Filter results to \textit{exactly} the date range 1910--1919
+    \item Identify which documents are \textit{within} Pine Valley (a spatial containment relationship)
+    \item Count the qualifying documents accurately
+\end{enumerate}
+
+A document from 1935 mentioning ``1910s architectural style'' might rank highly due to semantic similarity, despite being logically irrelevant. As document collections grow, this problem compounds: the retrieval system returns increasingly noisy results, and accuracy degrades.
 
 
-% === 1.3 Contributions ===
+% ============================================
+% 1.3 Thesis Contributions
+% ============================================
 \section{Thesis Contributions}
 
-This thesis makes two primary contributons addressing the challenges outlined above:
-
-\paragraph{Contribution 1: Document Processing Pipeline and Case Study.}
-We develop an end-to-end pipeline for extracting structured spatio-temporal data from historical deed documents and apply it to 569 records from the Massachusetts Covenants Project. The pipeline integrates OCR, named entity extraction, and geographic information systems, achieving 76.3\% geolocation accuracy. The tool is released as open-source software and is being packaged for deployement with MassHousing.
-
-\paragraph{Contribution 2: Graph RAG Framework for Spatio-Temporal Reasoning.}
-We design and evaluate a Graph RAG architecture that encodes temporal and spatial relationships in a knowledge graph structure, enabling multi-hop reasoning over document collections. Through controlled experiements on synthetic data, we demonstrate that Graph RAG outperforms traditional vector RAG by over 8,442\% on F1 score at scale, with particularly strong improvements on temporal reasoning (+12,900\%) and spatio-temporal joint queries.
+This thesis makes two primary contributions addressing the challenges outlined above:
 
 
-% === 1.4 Thesis Structure ===
+We develop an end-to-end pipeline for extracting structured spatio-temporal data from historical deed documents and apply it to 569 records from the Massachusetts Covenants Project. The dataset spans 1861--1930 and covers North Middlesex County. The pipeline integrates optical character recognition (OCR), named entity extraction, and geographic information systems, achieving 76.3\% geolocation accuracy on documents containing geographic information. Beyond technical validation, the case study reveals patterns in covenant prevalence, spatial clustering, and temporal trends that contribute to understanding housing discrimination in Massachusetts. The tool is released as open-source software\footnote{Available at \url{https://github.com/lauyihong/deeds_pipeline}} and is being packaged for deployment with MassHousing.
+
+We design and evaluate a Graph RAG architecture that explicitly encodes the inherent spatio-temporal topology of property records into a structured knowledge graph. Unlike flattened vector spaces, our framework treats deeds, streets, subdivisions, and specific timestamps as interconnected nodes. By defining directional edges such as \texttt{PRECEDES} for temporal sequences and \texttt{IN\_SUBDIVISION} for spatial containment, we move beyond simple semantic proximity to a system capable of traversing the logical chains required for historical analysis.
+
+Our experiments on a synthetic dataset—meticulously modeled after the North Middlesex deed characteristics—reveal a stark divergence between graph-based and vector-based retrieval. While traditional Vector RAG exhibits a catastrophic collapse in performance as the document corpus scales, Graph RAG demonstrates remarkable resilience. At a scale of 2,000 documents, Graph RAG maintains an F1 score of 0.598, whereas Vector RAG effectively fails with a score of 0.007. This 8,400\% improvement is not merely a statistical outlier but a reflection of a fundamental shift: as the density of the vector space increases, semantic overlap becomes noise, whereas the explicit constraints of a graph structure act as a filter.
+
+The advantage is most pronounced in temporal and joint spatio-temporal reasoning, where we observed gains exceeding 12,000\%. Furthermore, our analysis suggests that the bottleneck for complex historical queries often lies in initial intent interpretation. By implementing a specialized query parser to disambiguate historical shorthand—such as expanding the "1910s" into a discrete 1910--1919 range—we achieved an additional order-of-magnitude improvement (1,184\%) in accuracy. This finding underscores that for legal archives, the architectural synergy between structured retrieval and precise query decomposition is as critical as the retrieval mechanism itself.
+
+% ============================================
+% 1.4 Thesis Organization
+% ============================================
 \section{Thesis Organization}
 
 This thesis is organized into six chapters addressing the dual challenges of information extraction and reasoning at scale for historical legal document analysis.
 
-Following this introduction, Chapter~\ref{ch:related-work} reviews related work spanning four areas: the evolution of retrieval-augmented generation systems from basic vector search to graph-enhanced architectures; specific Graph RAG implementations including Microsoft GraphRAG, LightRAG, and HippoRAG; benchmarks and methods for multi-hop reasoning and temporal question answering; and prior work on legal and historical document analysis using natural language processing techniques.
+Following this introduction, \textbf{Chapter~\ref{ch:related-work}} reviews related work spanning four areas: the evolution of retrieval-augmented generation systems from basic vector search to graph-enhanced architectures; specific Graph RAG implementations including Microsoft GraphRAG, LightRAG, and HippoRAG; benchmarks and methods for multi-hop reasoning and temporal question answering; and prior work on legal and historical document analysis using natural language processing techniques.
 
-Chapter~\ref{ch:case-study} presents our first contribution through a case study of the Massachusetts Covenants Project. We describe the dataset of 569 historical deed records spanning 1861--1930 from North Middlesex County, detail the document processing pipeline from OCR through geographic information extraction, and present findings on covenant prevalence, spatial clustering, and temporal patterns. This chapter demonstrates the practical applicability of our extraction approach and establishes the real-world context motivating the technical framework developed subsequently.
+\textbf{Chapter~\ref{ch:case-study}} presents our first contribution through a case study of the Massachusetts Covenants Project. We describe the dataset of 569 historical deed records spanning 1861--1930 from North Middlesex County, detail the document processing pipeline from OCR through geographic information extraction, and present findings on covenant prevalence, spatial clustering, and temporal patterns. This chapter demonstrates the practical applicability of our extraction approach and establishes the real-world context motivating the technical framework developed subsequently.
 
-Chapter~\ref{ch:graph-rag} addresses our second contribution by presenting a systematic comparison of Vector RAG and Graph RAG architectures for spatio-temporal reasoning tasks. We describe the synthetic data generation strategy designed to mirror real deed document characteristics, introduce a five-level benchmark hierarchy spanning single-hop lookup through conflict detection, and present experimental results demonstrating Graph RAG's substantial advantages at scale. The chapter also analyzes the critical role of query parsing in achieving strong performence on complex spatio-temporal queries.
+\textbf{Chapter~\ref{ch:graph-rag}} addresses our second contribution by presenting a systematic comparison of Vector RAG and Graph RAG architectures for spatio-temporal reasoning tasks. We describe the synthetic data generation strategy designed to mirror real deed document characteristics, introduce a five-level benchmark hierarchy spanning single-hop lookup through conflict detection, and present experimental results demonstrating Graph RAG's substantial advantages at scale. The chapter also analyzes the critical role of query parsing in achieving strong performance on complex spatio-temporal queries.
 
-Chapter~\ref{ch:discussion} synthesizes findings from both contributions, discussing how the case study and framework evaluation complement each other, identifying appropriate use cases for Graph RAG versus simpler retrieval approaches, and acknowledging limitations of our current work including the use of synthetic rather than real data for the framework evaluation.
+\textbf{Chapter~\ref{ch:discussion}} discusses the implications of our findings for both the technical research community and practitioners in urban planning and housing policy. We examine the conditions under which Graph RAG provides the greatest advantages, the trade-offs between different retrieval architectures, and the potential for integrating our document processing pipeline with the Graph RAG framework.
 
-Finally, Chapter~\ref{ch:conclusion} summarizes our key findings and their implications for urban planning research, legal document analysis, and retrieval system design, while outlining directions for future work including integration of the processing pipeline with the Graph RAG framework and extension to larger document corpora.
+Finally, \textbf{Chapter~\ref{ch:conclusion}} summarizes our contributions, acknowledges limitations, and outlines directions for future work, including extensions to other legal document domains and integration with real-time document verification workflows.
