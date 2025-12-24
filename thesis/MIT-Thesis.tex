@@ -36,8 +36,8 @@
 %						If you are using multiple languages, load the babel package in your fontset file, before the fonts.
 
 %%%%%%%%% Packages used in sample chapters (not otherwise required) %%%%%%%
-\usepackage[backend=bibtex]{biblatex}
-\addbibresource{mitthesis-sample.bib}
+%\usepackage[backend=bibtex]{biblatex}  % Commented out - loaded later with more options
+%\addbibresource{mitthesis-sample.bib}
 
 \usepackage{soul}
 \usepackage{xcolor}
@@ -64,6 +64,8 @@
 
 % Package for multipage table in Appendix B.
 \usepackage{longtable}% typeset multi-page tables (https://ctan.org/pkg/longtable)
+
+\usepackage{multirow}% For multirow cells in tables (https://ctan.org/pkg/multirow)
 
 %\usepackage{tabularx}% adjustable-width columns in tabular (https://ctan.org/pkg/tabularx)
 
@@ -195,20 +197,20 @@
 
 % note on names: most of the following names are made up; Silas Holman was a physics professor at MIT in the 19th century.
 
-\Author{Yifeng Liu}{Department of Electrical Engineering and Computer Science\\ \>  Department of Urban Studies and Planing}
+\Author{Yifeng Liu}{Department of Electrical Engineering and Computer Science}
 % \Author{Luisa Hernández}{Department of Research}[B.S. Mechanical Engineering, UCLA, 2018][M.S. Stellar Interiors, Vulcan Science Academy, 2020]
 % \Author{Thurston Howell III}{Department of Economics}[MBA, Ferengi School of Management, 2022]
 
 % Use once for each degree fulfilled by thesis
 % For two degrees from one department, leave the department argument blank for the second degree {}.
-\Degree{Master in City Planning}{Department of Urban Studies and Planing \\ \> }  
+\Degree{Master in City Planning}{Department of Urban Studies and Planning}  
 \Degree{Master of Science in Electrical Engineering and Computer Science}{Department of Electrical Engineering and Computer Science}
 %\Degree{Master of Science in Physics}{}
 %\Degree{Bachelor of Science in Mechanical Engineering}{Department of Mechanical Engineering}
 
 % If there is more than one supervisor, use the \Supervisor command for each.
 \Supervisor{Sarah Williams}{Associate Professor of Technology and Urban Planning}
-\Supervisor{Manish Raghavan}{Professor of MIT Sloan School of Management , and \\ \> Department of Electrical Engineering and Computer Science}
+\Supervisor{Manish Raghavan}{Professor of MIT Sloan School of Management and EECS}
 % \Supervisor{Secunda Castor}{Professor of Research}
 % \Supervisor{Quintus Castor}{Professor of Log Dams}
 
@@ -305,9 +307,9 @@
 \include{chapter4}
 \include{chapter5}
 \include{chapter6}
- \include{chapter0} % template
+\include{chapter0} % template
 
- \include{MIT-thesis-template/chapter_note}
+%\include{chapter_note}  % Commented out - file path issue
 
 
 %%% Appendicies of thesis  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
