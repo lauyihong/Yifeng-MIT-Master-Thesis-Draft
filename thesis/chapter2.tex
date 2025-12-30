@@ -1,98 +1,463 @@
-% Chapter 2: Related Work
-% Master's Thesis - Yifeng
-% Draft Version 1.0 - FRAMEWORK ONLY
+\chapter{Related Work}
 
-\chapter{Related Work}\label{ch:related-work}
+This chapter reviews prior work across five areas relevant to our research: retrieval-augmented generation systems, graph-based retrieval methods, multi-hop and temporal reasoning benchmarks, legal and historical document analysis, and empirical research on racial covenants. We conclude by identifying the research gaps that motivate our contributions.
 
-This chapter reviews prior work across four areas relevant to our research: retrieval-augmented generation systems, graph-based retrieval methods, multi-hop and temporal reasoning benchmarks, and legal document analysis.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Retrieval-Augmented Generation}
+\label{sec:rag}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% ============================================
-% 2.1 RAG Evolution
-% ============================================
-\section{Retrieval-Augmented Generation}\label{sec:rag-evolution}
+Large language models (LLMs) have demonstrated remarkable capabilities in natural language understanding and generation. However, they face a fundamental limitation: their knowledge is static, fixed at training time, and they cannot access information beyond their training data. Retrieval-Augmented Generation (RAG) addresses this limitation by combining information retrieval with language generation, enabling models to answer questions based on external document collections.
 
-\hl{[Evolution of RAG from Lewis et al. 2020 to current, most recent work from Gengcheng Mai(Spatial RAG)]}
+%------------------------------------------------------------------------------
+\subsection{Foundations of RAG}
+\label{subsec:rag-foundations}
+%------------------------------------------------------------------------------
 
+% TODO: 解释RAG的基本概念
+% - LLM的知识截止问题（knowledge cutoff）
+% - RAG的两步流程：检索（Retrieval）→ 生成（Generation）
+% - RAG如何让LLM能够回答基于外部文档的问题
+% - 引用Lewis et al. 2020 (NeurIPS) - RAG原论文
+
+[TODO: Explain RAG fundamentals. Lewis et al.~\cite{lewis2020retrieval} introduced Retrieval-Augmented Generation...]
+
+The RAG framework operates in two stages. First, given a user query $q$, a retrieval system $R$ searches a document corpus $\mathcal{D}$ to identify relevant passages. Second, a language model $G$ generates an answer conditioned on both the query and the retrieved passages:
+\begin{equation}
+    \text{answer} = G(q, R(q, \mathcal{D}))
+\end{equation}
+
+[TODO: Add figure showing RAG workflow]
+
+%------------------------------------------------------------------------------
 \subsection{Vector-Based Retrieval}
+\label{subsec:vector-retrieval}
+%------------------------------------------------------------------------------
 
-\hl{[Dense retrieval, embedding models, limitations for structured reasoning]}
+% TODO: 解释向量检索的工作原理
+% - Embedding的概念：把文字转换成数字向量
+% - 相似度计算：cosine similarity
+% - Dense Passage Retrieval (DPR)的工作原理
+% - 常用的embedding模型（如OpenAI text-embedding-3-small）
+% - 引用Karpukhin et al. 2020 (EMNLP) - DPR论文
 
+The dominant approach to retrieval in modern RAG systems is \textit{dense retrieval}, which represents both queries and documents as high-dimensional vectors (embeddings) and retrieves documents based on vector similarity.
+
+[TODO: Explain embedding concept with concrete example]
+
+Dense Passage Retrieval (DPR)~\cite{karpukhin2020dense} demonstrated that learned dense representations can significantly outperform traditional sparse retrieval methods...
+
+[TODO: Explain cosine similarity, embedding models]
+
+%------------------------------------------------------------------------------
 \subsection{Hybrid Retrieval Approaches}
+\label{subsec:hybrid-retrieval}
+%------------------------------------------------------------------------------
 
-\hl{[Combining sparse and dense, BM25 + embeddings]}
+% TODO: 解释混合检索方法
+% - BM25（传统关键词匹配）的优缺点
+% - Dense retrieval的优缺点
+% - 为什么结合两者（hybrid）可能更好
+% - 可选引用：ColBERT, hybrid retrieval surveys
 
+While dense retrieval excels at capturing semantic similarity, traditional lexical methods like BM25 remain effective for exact keyword matching. Hybrid approaches combine both signals...
+
+[TODO: Brief discussion of hybrid methods]
+
+%------------------------------------------------------------------------------
 \subsection{Limitations for Complex Reasoning}
+\label{subsec:rag-limitations}
+%------------------------------------------------------------------------------
 
-\hl{[Why vector similarity fails for multi-hop, cite empirical studies]}
+% TODO: 这是最重要的部分！解释Vector RAG的致命缺陷
+% - 核心问题：只看"语义相似"，不看"逻辑相关"
+% - 三类无法处理的问题：
+%   1. 时间约束问题（"1920年之前"）
+%   2. 空间关系问题（"同一条街"）
+%   3. 多跳推理问题（需要跨文档推理）
+% - 可以前置引用Chapter 4的实验结果作为证据
 
+Despite their success on factual question answering, vector-based RAG systems face fundamental limitations when queries require \textit{structured reasoning} rather than semantic matching. We identify three categories of queries where vector retrieval fails:
 
-% ============================================
-% 2.2 Graph RAG Methods  
-% ============================================
-\section{Graph-Enhanced Retrieval}\label{sec:graph-rag-methods}
+\paragraph{Temporal Constraint Queries.} When a user asks ``Which deeds were signed before 1920?'', the system must understand that ``before'' implies a strict ordering constraint. Vector similarity cannot capture this logical relationship---a document from 1925 may have a similar embedding to one from 1915 simply because both mention similar content.
 
-\hl{[Intro paragraph on knowledge graph integration with LLMs]}
+\paragraph{Spatial Relationship Queries.} Questions such as ``Which deeds share streets with deed\_0001?'' require traversing relationships between documents. The answer depends not on textual similarity but on whether documents reference the same geographic entity.
 
+\paragraph{Multi-Hop Reasoning Queries.} Complex questions like ``Find all covenants on streets where properties were sold before 1925'' require chaining multiple reasoning steps across documents.
+
+As we demonstrate in Chapter~\ref{ch:graph-rag}, these limitations become catastrophic at scale: Vector RAG achieves an F1 score of only 0.007 on our benchmark of 2,000 documents, compared to 0.598 for our Graph RAG approach---an improvement of over 8,400\%.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Graph-Enhanced Retrieval}
+\label{sec:graph-rag}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+To address the limitations of vector-based retrieval for complex reasoning, researchers have developed \textit{Graph RAG} approaches that represent documents and their relationships as knowledge graphs, enabling structured traversal rather than similarity-based matching.
+
+%------------------------------------------------------------------------------
+\subsection{Knowledge Graph Fundamentals}
+\label{subsec:kg-fundamentals}
+%------------------------------------------------------------------------------
+
+% TODO: 解释知识图谱的基本概念
+% - 节点（Node）和边（Edge）
+% - 节点代表实体（文件、街道、日期、人物）
+% - 边代表关系（MENTIONS_STREET, SIGNED_ON, PRECEDES）
+% - 图遍历（graph traversal）的概念
+% - 用Figure 4.1的schema作为例子
+
+A knowledge graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$ consists of nodes $\mathcal{V}$ representing entities and edges $\mathcal{E}$ representing relationships between entities. In the context of document retrieval, nodes may represent documents, entities mentioned in documents (people, places, dates), or abstract concepts, while edges capture semantic relationships.
+
+[TODO: Explain with deed document example - use Figure 4.1 schema]
+
+Graph-based retrieval operates through \textit{graph traversal}: starting from seed nodes matching query entities, the system follows edges to discover related nodes. This enables queries that vector similarity cannot express, such as ``find all nodes connected to node $v$ through a specific edge type.''
+
+%------------------------------------------------------------------------------
 \subsection{Microsoft GraphRAG}
+\label{subsec:microsoft-graphrag}
+%------------------------------------------------------------------------------
 
-\hl{[Edge et al. 2024, community detection, hierachical summarization, 70-80\% win rate on global queries]}
+% TODO: 详细介绍Microsoft GraphRAG
+% - 核心思想：community detection + hierarchical summarization
+% - 工作流程：文档→实体提取→社区划分→社区总结
+% - 实验结果：全局问题上比Vector RAG好70-80%
+% - 局限：计算成本高
+% - 引用Edge et al. 2024
 
+Edge et al.~\cite{edge2024local} introduced GraphRAG, a graph-based approach to retrieval-augmented generation that constructs a knowledge graph from source documents and uses community detection to create hierarchical summaries.
+
+[TODO: Explain workflow, results (70-80\% win rate), limitations (cost)]
+
+%------------------------------------------------------------------------------
 \subsection{LightRAG}
+\label{subsec:lightrag}
+%------------------------------------------------------------------------------
 
-Guo et al. EMNLP 2025, 6x cheaper, dual-level retrieval, 80\%+ on legal docs
+% TODO: 介绍LightRAG
+% - 核心优势：成本只有GraphRAG的1/6
+% - 双层检索：entity-level + relationship-level
+% - 支持增量更新（incremental update）
+% - 在法律文档上准确率超过80%
+% - 引用Guo et al. EMNLP 2025
 
+Guo et al.~\cite{guo2025lightrag} proposed LightRAG, a more efficient alternative to GraphRAG that achieves comparable performance at significantly lower computational cost.
+
+[TODO: Explain dual-level retrieval, incremental updates, 80\%+ accuracy on legal docs, 6x cheaper]
+
+%------------------------------------------------------------------------------
 \subsection{HippoRAG}
+\label{subsec:hipporag}
+%------------------------------------------------------------------------------
 
-Gutierrez et al. NeurIPS 2024, neurobiological inspiration, 20\% improvement on multi-hop, 10-30x cheaper than iterative
+% TODO: 介绍HippoRAG
+% - 核心思想：模仿人脑海马体的记忆检索机制
+% - 使用Personalized PageRank (PPR)算法
+% - 实验结果：多跳QA比其他方法好20%，成本便宜10-30倍
+% - 在MuSiQue, HotpotQA等benchmark上验证
+% - 引用Gutiérrez et al. NeurIPS 2024
 
-\subsection{Other Approaches}
+Gutiérrez et al.~\cite{gutierrez2024hipporag} introduced HippoRAG, drawing inspiration from the human hippocampus's role in memory retrieval. The system uses Personalized PageRank (PPR) to identify relevant subgraphs given a query.
 
-SubgraphRAG ICLR 2025, Neo4j GraphRAG, comparison table
+[TODO: Explain PPR mechanism, 20\% improvement on multi-hop, 10-30x cheaper than iterative methods]
 
+%------------------------------------------------------------------------------
+\subsection{Other Approaches and Comparison}
+\label{subsec:other-graph-rag}
+%------------------------------------------------------------------------------
 
-% ============================================
-% 2.3 Multi-Hop and Temporal QA
-% ============================================
-\section{Multi-Hop Reasoning and Temporal Question Answering}\label{sec:multihop-temporal}
+% TODO: 介绍其他方法并做对比
+% - SubgraphRAG (Li et al. ICLR 2025)
+% - Neo4j GraphRAG Python
+% - LlamaIndex PropertyGraphIndex
+% - 必须包含对比表格
 
-\hl{[Intro on why multi-hop is hard, temporal adds another dimension]}
+Several other graph-enhanced retrieval systems have been proposed:
 
+\paragraph{SubgraphRAG.} Li et al.~\cite{li2025subgraphrag} demonstrated that smaller language models combined with subgraph retrieval can achieve competitive performance...
+
+\paragraph{Neo4j GraphRAG.} The Neo4j database provides production-ready graph RAG capabilities...
+
+\paragraph{LlamaIndex PropertyGraphIndex.} The LlamaIndex framework offers integrated graph-based retrieval...
+
+% TODO: 添加对比表格
+\begin{table}[htbp]
+\centering
+\caption{Comparison of Graph RAG approaches}
+\label{tab:graph-rag-comparison}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Method} & \textbf{Venue} & \textbf{Key Strength} & \textbf{Cost} & \textbf{Multi-hop} \\
+\midrule
+GraphRAG & arXiv 2024 & Global QA & High & Medium \\
+LightRAG & EMNLP 2025 & Efficiency & Low & High \\
+HippoRAG & NeurIPS 2024 & Multi-hop & Low & High \\
+SubgraphRAG & ICLR 2025 & Small models & Low & High \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Multi-Hop Reasoning and Temporal Question Answering}
+\label{sec:multi-hop-temporal}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Complex questions often require combining information from multiple sources---a capability known as \textit{multi-hop reasoning}. When questions additionally involve temporal constraints, the reasoning challenge becomes even more demanding.
+
+%------------------------------------------------------------------------------
 \subsection{Multi-Hop QA Benchmarks}
+\label{subsec:multihop-benchmarks}
+%------------------------------------------------------------------------------
 
-\hl{[HotpotQA EMNLP 2018, MuSiQue TACL 2022, MultiHop-RAG COLM 2024]}
+% TODO: 介绍多跳问答的benchmark
+% - 什么是多跳推理：答案需要跨多个文档/段落
+% - HotpotQA (Yang et al. EMNLP 2018)：113K问题
+% - MuSiQue (Trivedi et al. TACL 2022)：25K问题，2-4跳，防作弊设计
+% - MultiHop-RAG (Tang et al. COLM 2024)：2,556问题，包含时间推理
 
+Multi-hop reasoning requires combining evidence from multiple documents or passages to answer a question. Unlike single-hop questions where the answer appears directly in one source, multi-hop questions demand traversing relationships between pieces of information.
+
+\paragraph{HotpotQA.} Yang et al.~\cite{yang2018hotpotqa} introduced HotpotQA, containing 113,000 questions that require reasoning over two Wikipedia paragraphs...
+
+\paragraph{MuSiQue.} Trivedi et al.~\cite{trivedi2022musique} created MuSiQue, a more challenging benchmark with 25,000 questions requiring 2--4 reasoning hops. The dataset is specifically designed to prevent shortcut solutions...
+
+\paragraph{MultiHop-RAG.} Tang and Yang~\cite{tang2024multihoprag} introduced the first benchmark specifically targeting RAG systems for multi-hop queries, containing 2,556 questions including temporal reasoning tasks...
+
+%------------------------------------------------------------------------------
 \subsection{Temporal Knowledge Graph QA}
+\label{subsec:temporal-kgqa}
+%------------------------------------------------------------------------------
 
-\hl{[CronKGQA ACL 2021, TempoQR AAAI 2022, EXAQT CIKM 2021, TimelineKGQA]}
+% TODO: 介绍时间知识图谱问答
+% - 时间推理的特殊挑战：答案随时间变化
+% - 时间约束类型：时间点、时间范围、时间顺序、时间表达（"1920年代"）
+% - CronKGQA (Saxena et al. ACL 2021)：比基线提升120%
+% - TempoQR (Mavromatis et al. AAAI 2022)
+% - EXAQT (Jia et al. CIKM 2021)
 
+Temporal reasoning introduces additional complexity: the same question may have different answers depending on the time context. A question like ``Who is the US President?'' requires understanding the temporal scope of the query.
+
+Temporal constraints in questions take several forms:
+\begin{itemize}
+    \item \textbf{Point queries}: ``What happened in 1924?''
+    \item \textbf{Range queries}: ``List events between 1920 and 1930.''
+    \item \textbf{Ordering queries}: ``Did A occur before or after B?''
+    \item \textbf{Implicit ranges}: ``During the 1920s'' (meaning 1920--1929)
+\end{itemize}
+
+\paragraph{CronKGQA.} Saxena et al.~\cite{saxena2021question} introduced CronQuestions, a dataset 340$\times$ larger than previous temporal KGQA datasets, and proposed CronKGQA, achieving 120\% improvement over baselines...
+
+\paragraph{TempoQR.} Mavromatis et al.~\cite{mavromatis2022tempoqr} extended CronKGQA to handle more complex temporal constraints...
+
+\paragraph{EXAQT.} Jia et al.~\cite{jia2021complex} proposed using Group Steiner Trees for complex temporal question answering...
+
+%------------------------------------------------------------------------------
 \subsection{Spatio-Temporal Reasoning}
+\label{subsec:spatio-temporal}
+%------------------------------------------------------------------------------
 
-\hl{[Limited prior work, SSTKG, GeoQA, gap our work addresses]}
+% TODO: 介绍空间推理的现有工作
+% - GeoQA等地理问答数据集
+% - 可选：简要提及Gengcheng Mai的Spatial RAG工作
+% - 说明其关注点与本thesis不同
 
+Spatial reasoning in NLP has primarily focused on geographic knowledge questions (e.g., ``Which country is Paris in?'') rather than document-level spatial relationships. GeoQA and related benchmarks evaluate understanding of geographic facts...
 
-% ============================================
-% 2.4 Legal/Historical Document Analysis
-% ============================================
-\section{Legal and Historical Document Analysis}\label{sec:legal-docs}
+[TODO: Brief discussion of existing spatial reasoning work]
 
-\hl{[NLP for legal domain, historical document digitization challenges]}
+%------------------------------------------------------------------------------
+\subsection{The Spatio-Temporal Retrieval Gap}
+\label{subsec:st-gap}
+%------------------------------------------------------------------------------
 
+% TODO: 这是Research Gap的核心声明！
+% - 现有研究的空白：
+%   - 时间推理：有人研究（CronKGQA, TempoQR）
+%   - 空间推理：有人研究（GeoQA）
+%   - 时间+空间+大规模检索：没有人研究
+% - 你的benchmark设计（5-level hierarchy）是针对这个gap的第一次尝试
+
+Despite significant progress in temporal KGQA and spatial reasoning independently, \textbf{no existing work addresses the intersection of temporal reasoning, spatial reasoning, and large-scale document retrieval}. This gap is precisely what historical document analysis demands: questions like ``How many covenants were recorded in Pine Valley subdivision during the 1910s?'' require:
+
+\begin{enumerate}
+    \item \textbf{Spatial constraint}: filtering to a specific subdivision
+    \item \textbf{Temporal constraint}: filtering to a date range (1910--1919)
+    \item \textbf{Retrieval at scale}: searching across thousands of documents
+\end{enumerate}
+
+Existing benchmarks address at most two of these three requirements. Our work fills this gap by introducing a five-level benchmark hierarchy (Chapter~\ref{ch:graph-rag}) that systematically evaluates spatio-temporal reasoning capabilities in retrieval systems.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Legal and Historical Document Analysis}
+\label{sec:legal-historical}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+The application domain of this thesis---historical property deed analysis---presents unique challenges that distinguish it from general document retrieval tasks.
+
+%------------------------------------------------------------------------------
 \subsection{Legal NLP Systems}
+\label{subsec:legal-nlp}
+%------------------------------------------------------------------------------
 
-\hl{[Legal-BERT, LexGLUE benchmark, contract analysis]}
+% TODO: 介绍法律NLP
+% - 法律文档的特殊性：专业术语、长句、特殊格式
+% - Legal-BERT：专门用法律文本训练的语言模型
+% - LexGLUE benchmark：法律NLP的标准测试集
+% - 合同分析、判决预测等应用
+% - 引用Chalkidis et al., LexGLUE
 
-\subsection{Historical Document Processing}
+Legal documents differ substantially from general text in vocabulary, sentence structure, and formatting. Legal terminology (e.g., ``grantor,'' ``grantee,'' ``covenant'') requires domain-specific understanding, and legal sentences are often exceptionally long and syntactically complex.
 
-\hl{[OCR challenges, archaic language, Stanford STARA project]}
+\paragraph{Legal-BERT.} Chalkidis et al. trained BERT models on legal corpora, demonstrating improved performance on legal NLP tasks compared to general-domain models...
 
-\subsection{Racial Covenant Research}
+\paragraph{LexGLUE.} The LexGLUE benchmark provides standardized evaluation for legal NLP across multiple tasks including document classification, named entity recognition, and question answering...
 
-\hl{[Mapping Prejudice project, Segregated Seattle, prior manual efforts, gap in automated analysis]}
+[TODO: Expand with specific results and applications]
 
+%------------------------------------------------------------------------------
+\subsection{Historical Document Processing Challenges}
+\label{subsec:historical-challenges}
+%------------------------------------------------------------------------------
 
-% ============================================
-% 2.5 Summary and Positioning
-% ============================================
+% TODO: 介绍历史文档处理的挑战
+% - 物理状态问题：发黄、污渍、褪色、破损
+% - 字体问题：手写草书、老式打字机、字母形状变化
+% - 语言问题：过时用语、地名变化、缩写方式
+% - OCR准确率：现代文档99%，历史文档60-80%
+% - Stanford STARA项目
+% - 引用Stanford STARA
+
+Historical documents present challenges beyond those of modern legal text:
+
+\paragraph{Physical Degradation.} Scanned historical documents often exhibit faded ink, water damage, yellowed paper, and torn edges, reducing image quality for optical character recognition (OCR).
+
+\paragraph{Archaic Typography.} Documents may be handwritten in period scripts or typed with worn typewriter ribbons. Letter forms differ from modern standards, confusing OCR systems trained on contemporary fonts.
+
+\paragraph{Evolving Language.} Legal terminology and geographic references have changed over decades. Street names may have been altered, subdivisions renamed, and legal phrasing modernized.
+
+\paragraph{OCR Accuracy.} While modern, clean documents achieve OCR accuracy above 99\%, historical documents often achieve only 60--80\% character-level accuracy, introducing substantial noise into downstream processing.
+
+The Stanford STARA project~\cite{stanford2024stara} has pioneered computational approaches to historical deed analysis, developing specialized tools for processing property records in California...
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Empirical Research on Racial Covenants}
+\label{sec:covenant-research}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% 这是新增的独立section，专门给Planning老师看
+
+This section reviews empirical research on racial restrictive covenants, providing context for the urban planning implications of our technical contributions.
+
+%------------------------------------------------------------------------------
+\subsection{Historical Context and Legacy}
+\label{subsec:covenant-history}
+%------------------------------------------------------------------------------
+
+% TODO: 介绍种族歧视契约的历史背景
+% - 什么是种族歧视契约
+% - 历史背景：1900-1950年代美国普遍存在
+% - 典型条款内容
+% - Shelley v. Kraemer (1948)
+% - 长期影响：房屋拥有率、房产价值、健康状况、财富积累
+% - 引用Rothstein 2017, Sood & Ehrman-Solberg 2023, West et al. 2024
+
+Racial restrictive covenants were legal clauses embedded in property deeds that prohibited sale or rental to specific racial or ethnic groups. A typical covenant might read: ``This property shall not be sold, leased, or occupied by any person not of the Caucasian race.'' These private contractual restrictions operated alongside public policies such as redlining to systematically exclude minority families from predominantly white neighborhoods~\cite{rothstein2017color}.
+
+Although the Supreme Court ruled such covenants unenforceable in \textit{Shelley v. Kraemer} (1948), the covenants themselves were never removed from property records. They remain embedded in millions of deeds across the country.
+
+\paragraph{Lasting Effects.} Research has demonstrated persistent disparities in neighborhoods historically subjected to racial covenants:
+\begin{itemize}
+    \item Lower homeownership rates~\cite{sood2023long}
+    \item Reduced property values
+    \item Worse health outcomes~\cite{west2024lasting}
+    \item Lower wealth accumulation
+\end{itemize}
+
+Understanding where, when, and how these covenants proliferated is therefore essential for urban planning research and housing policy analysis.
+
+%------------------------------------------------------------------------------
+\subsection{Existing Identification Projects}
+\label{subsec:existing-projects}
+%------------------------------------------------------------------------------
+
+% TODO: 介绍现有的契约识别项目
+% - Mapping Prejudice（明尼苏达大学）：众包方法，约30,000份文件
+% - Segregated Seattle
+% - Stanford STARA：开始使用AI辅助
+% - Massachusetts Covenants Project
+% - 引用Delegard 2020, Steil 2024, Surani et al. 2024
+
+Several projects have undertaken systematic identification of racial covenants:
+
+\paragraph{Mapping Prejudice.} Delegard and Ehrman-Solberg~\cite{delegard2020mapping} at the University of Minnesota pioneered large-scale covenant identification in Minneapolis, using crowdsourced volunteers to manually review approximately 30,000 property documents.
+
+\paragraph{Segregated Seattle.} Similar crowdsourced approaches have been applied in Seattle, Washington...
+
+\paragraph{Stanford STARA.} Surani et al.~\cite{surani2024stara} at Stanford began incorporating machine learning to assist human reviewers in Santa Clara County, California...
+
+\paragraph{Massachusetts Covenants Project.} Steil and So~\cite{steil2024macovenants} at MIT, in collaboration with MassHousing, are systematically documenting covenants across Massachusetts. This thesis emerges from participation in this project.
+
+%------------------------------------------------------------------------------
+\subsection{The Case for Automation}
+\label{subsec:automation-case}
+%------------------------------------------------------------------------------
+
+% TODO: 解释为什么需要自动化
+% - 手动方法的规模问题
+% - 人工审核的时间成本
+% - 自动化的价值：筛选→人工确认
+% - 这是Chapter 3的motivation
+
+While crowdsourced approaches have proven valuable, they face fundamental scalability limitations:
+
+\begin{itemize}
+    \item Massachusetts alone contains hundreds of thousands of historical property deeds
+    \item Manual review requires 5--10 minutes per document
+    \item At this rate, comprehensive statewide analysis would require decades
+\end{itemize}
+
+Automated processing offers a path forward: computational systems can rapidly screen documents, flagging likely candidates for human verification. This two-stage approach---automated filtering followed by human confirmation---dramatically reduces the manual effort required while maintaining accuracy.
+
+Chapter~\ref{ch:case-study} presents our document processing pipeline addressing this need, achieving 76.3\% geolocation accuracy on 569 historical deed records from North Middlesex County.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Summary and Research Gap}
+\label{sec:lit-summary}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\hl{[Position our work: first systematic Graph RAG evaluation on spatio-temporal legal documents, combining extraction pipeline with reasoning framework]}
+This chapter has reviewed five areas of related work: retrieval-augmented generation, graph-enhanced retrieval, multi-hop and temporal reasoning, legal and historical document processing, and empirical research on racial covenants.
+
+\paragraph{Technical Gap.} While significant progress has been made in graph-based retrieval (Section~\ref{sec:graph-rag}) and temporal reasoning (Section~\ref{sec:multi-hop-temporal}), no existing work addresses the combination of:
+\begin{enumerate}
+    \item Structured graph-based retrieval
+    \item Temporal constraint handling
+    \item Spatial relationship reasoning
+    \item Large-scale document corpora
+    \item Systematic benchmarking
+\end{enumerate}
+
+\paragraph{Application Gap.} Existing racial covenant identification projects (Section~\ref{sec:covenant-research}) rely heavily on manual review, limiting their scalability. Automated approaches remain underdeveloped for this domain.
+
+Table~\ref{tab:research-gap} summarizes how our work addresses these gaps.
+
+\begin{table}[htbp]
+\centering
+\caption{Research positioning: comparison with existing approaches}
+\label{tab:research-gap}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Approach} & \textbf{Graph} & \textbf{Temporal} & \textbf{Spatial} & \textbf{Legal} & \textbf{Benchmark} \\
+\midrule
+Vector RAG & x & x & x & x & y \\
+Microsoft GraphRAG & y & x & x & x & x \\
+CronKGQA & y & y & x & x & y \\
+Mapping Prejudice & x & y & y & y & x \\
+\textbf{This Thesis} & y & y & y & y & y \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Our Contributions.} This thesis makes two contributions addressing these gaps:
+\begin{enumerate}
+    \item \textbf{Document Processing Pipeline} (Chapter~\ref{ch:case-study}): An end-to-end system for extracting structured spatio-temporal data from historical deed documents, achieving 76.3\% geolocation accuracy.
+    \item \textbf{Spatio-Temporal Graph RAG} (Chapter~\ref{ch:graph-rag}): A graph-based retrieval architecture that outperforms Vector RAG by over 8,400\% on our five-level benchmark hierarchy.
+\end{enumerate}
