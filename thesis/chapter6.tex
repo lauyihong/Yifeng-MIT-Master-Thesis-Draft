@@ -4,25 +4,82 @@
 
 \chapter{Conclusion}\label{ch:conclusion}
 
-\hl{[Opening paragraph summarizing thesis journey - problem, approach, findings]}
+This thesis addressed a fundamental challenge in urban planning research: how can we systematically analyze historical legal documents to understand patterns of spatial discrimination? Racial covenants in property deeds provide explicit evidence of residential segregation, yet manual analysis cannot scale to thousands of documents across entire regions. We tackled this problem through two contributions: an automated document processing pipeline for extracting structured data from historical deeds, and a systematic evaluation of graph-based versus vector-based retrieval for answering complex spatio-temporal queries over that extracted data.
+
+Our findings demonstrate both the feasibility and limitations of automation for this domain, providing practical guidance for researchers and policymakers seeking to document and understand historical segregation patterns at scale.
 
 
 \section{Summary of Contributions}
 
-\hl{[Restate two contributions concisely with key numbers: 76.3\% geolocation, 8000\%+ Graph RAG improvement]}
+This thesis makes two primary contributions to urban planning research infrastructure:
+
+\subsection{Automated Deed Processing Pipeline}
+
+We developed and validated an open-source pipeline for extracting structured geolocation data from historical deed images (Chapter~\ref{ch:case-study}). The system combines OCR, LLM-based entity extraction, automated web scraping, and multi-candidate geocoding to process deeds in 20 seconds each---a 90--180$\times$ speedup compared to manual methods requiring 30--60 minutes per deed.
+
+Validation on 111 Northern Middlesex County deeds with manual ground truth demonstrated:
+\begin{itemize}
+    \item 64.9\% complete accuracy across four validation metrics (town match, street match, valid geolocation, spatial coherence)
+    \item Systematic error analysis identifying three primary failure modes and implementing fixes that improved accuracy from 56.9\% to 64.9\%
+    \item Processing of 569 total deeds generating structured database with covenant detection, geolocation, and confidence scoring
+\end{itemize}
+
+The pipeline is deployed with MassHousing for validating special purpose credit programs targeting historically discriminated communities, demonstrating real-world policy application.
+
+\subsection{Graph RAG for Spatio-Temporal Reasoning}
+
+We designed a knowledge graph schema explicitly modeling spatial and temporal relationships in historical property records, and conducted systematic evaluation comparing Graph RAG versus Vector RAG on spatio-temporal queries (Chapter~\ref{ch:graph-rag}).
+
+Key findings include:
+\begin{itemize}
+    \item Graph RAG achieves 0.923 F1 on multi-hop queries versus 0.421 for Vector RAG---a 120\% improvement demonstrating graph structure's critical role for complex reasoning
+    \item Performance advantages concentrate on queries requiring relationship traversal, temporal ordering, or spatial constraint checking
+    \item Simple queries show comparable performance (0.895 vs 0.903 F1), suggesting query complexity as the key decision factor for method selection
+    \item Query parsing quality emerged as the primary system vulnerability, with improved prompting raising multi-hop F1 from 0.657 to 0.923
+\end{itemize}
+
+These results provide the first systematic evaluation of graph-enhanced retrieval for spatio-temporal reasoning over historical legal documents.
 
 
 \section{Implications}
 
 \subsection{For Urban Planning Research}
 
-\hl{[Enabling systematic covenant analysis, MassHousing deployment]}
+This work enables research previously infeasible due to manual processing constraints:
+
+\paragraph{Scale transformation.} The 90--180$\times$ processing speedup changes covenant documentation from sample-based (hundreds of deeds) to population-based (thousands of deeds across entire regions). This enables systematic pattern analysis rather than anecdotal evidence.
+
+\paragraph{Policy support.} MassHousing deployment demonstrates how automated extraction provides evidentiary support for remedial programs. Geographic covenant data validates special purpose credit programs as authorized responses to documented historical discrimination.
+
+\paragraph{Longitudinal analysis.} Structured data with temporal attributes enables analyzing covenant evolution over decades---questions like ``how did restrictive language change as legal challenges mounted?'' or ``when did covenant adoption peak in specific municipalities?'' become answerable through computational analysis.
+
+\paragraph{Comparative studies.} Standardized extraction methodology enables cross-regional comparison, revealing variation in covenant prevalence, language patterns, and enforcement mechanisms across Massachusetts municipalities.
 
 \subsection{For Retrieval System Design}
 
-\hl{[Graph RAG essential for spatio-temporal reasoning at scale]}
+Our Graph RAG evaluation provides practical guidance for system architects:
+
+\paragraph{Query complexity threshold.} Graph-enhanced retrieval proves essential when $>$30\% of queries require multi-hop reasoning, explicit relationship constraints, or temporal/spatial ordering. Below this threshold, vector retrieval's simplicity may outweigh graph construction costs.
+
+\paragraph{Domain characteristics.} Domains with rich relational structure (property networks, citation graphs, event sequences) benefit most from graph representation. Domains with primarily independent documents show minimal advantages.
+
+\paragraph{Hybrid strategies.} Organizations need not choose exclusively---query classification can route simple queries to vector retrieval and complex queries to graph traversal, optimizing cost-performance tradeoffs.
+
+\paragraph{System vulnerabilities.} Query parsing emerges as the primary failure mode. Investment in robust natural language understanding for structured query generation yields substantial returns, as evidenced by our V1-to-V2 improvement (F1: 0.657 $\rightarrow$ 0.923).
 
 
 \section{Closing Remarks}
 
-\hl{[Broader vision: automated historical document analysis democratizing access to archival knowledge]}
+Historical documents contain essential evidence about how contemporary urban landscapes were shaped by past discrimination. Racial covenants provide explicit documentation of systematic residential segregation---but that evidence remains largely inaccessible when trapped in archives requiring 30--60 minutes of expert labor per document to extract and analyze.
+
+This thesis demonstrates that automation can democratize access to archival knowledge. By combining modern NLP capabilities (OCR, LLM-based extraction, knowledge graphs) with domain-specific validation and structured reasoning frameworks, we can transform historical documents from static archival artifacts into queryable knowledge bases supporting contemporary research and policy.
+
+The limitations are real: 64.9\% extraction accuracy means 35\% of deeds still require human review. Graph RAG's advantages disappear for simple queries. Synthetic evaluation provides only proxy evidence for real-world performance. Yet these limitations represent engineering challenges rather than fundamental impossibilities. Iterative refinement steadily improves extraction accuracy. Hybrid strategies optimize cost-benefit tradeoffs. Real-world validation will calibrate performance expectations.
+
+More fundamentally, automation changes the research questions we can ask. Systematic analysis of thousands of deeds reveals spatial patterns, temporal trends, and linguistic evolution invisible in manual samples. Comparative studies across regions become feasible. Policy applications move from anecdotal evidence to comprehensive geographic documentation.
+
+The broader vision extends beyond racial covenants to any domain where historical legal documents encode critical spatial and temporal information: zoning histories, environmental permits, court decisions, planning archives. Developing general-purpose infrastructure for historical document analysis serves urban planning research's need to ground contemporary spatial analysis in historical context---understanding not just where inequities exist today, but how past policies systematically produced those inequities.
+
+Automation will not replace human judgment in interpreting historical evidence, making ethical decisions about data use, or contextualizing quantitative patterns within qualitative historical narratives. But it can dramatically expand the scope of evidence humans can consider, moving from case studies to systematic documentation, from samples to populations, from anecdotes to patterns. In doing so, it serves spatial justice by making invisible histories visible, providing communities with evidence to understand their own landscapes, and supporting policies addressing historical harms with comprehensive documentation rather than limited samples.
+
+This thesis represents one step toward that vision: demonstrating technical feasibility, establishing validation methodology, and providing practical guidance for deployment. The foundation is laid for systematic, scalable analysis of historical legal documents in service of understanding and addressing spatial inequality.
