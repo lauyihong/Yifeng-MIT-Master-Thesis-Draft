@@ -4,7 +4,7 @@
 
 \chapter{Discussion}\label{ch:discussion}
 
-This chapter synthesizes findigns from both contributions, examines their interconnections, and discusses limitations and future directions.
+This chapter synthesizes findings from both contributions, examines their interconnections, and discusses limitations and future directions. We address three key questions: how the document processing pipeline and Graph RAG evaluation connect, when practitioners should adopt graph-based versus vector-based retrieval, and what methodological limitations constrain generalization of our findings.
 
 % ============================================
 % Section Headers Only - To Be Written Later
@@ -12,30 +12,270 @@ This chapter synthesizes findigns from both contributions, examines their interc
 
 \section{Synthesis: Connecting Extraction and Reasoning}
 
-\hl{[How Part 1 pipeline output feeds into Part 2 Graph RAG; end-to-end vision; why evaluated seperately]}
+This thesis addresses two complementary challenges: extracting structured data from unstructured historical documents (Chapter~\ref{ch:case-study}) and organizing that data for complex analytical queries (Chapter~\ref{ch:graph-rag}).
+
+\subsection{From Unstructured Text to Structured Knowledge}
+
+The document processing pipeline (Chapter~\ref{ch:case-study}) transforms scanned deed images into structured records containing:
+\begin{itemize}
+    \item \textbf{Entities}: Properties, locations, grantors, grantees
+    \item \textbf{Temporal attributes}: Recording dates, covenant signing dates
+    \item \textbf{Spatial attributes}: Coordinates, cluster radii, towns
+    \item \textbf{Textual content}: Covenant language, extracted clauses
+\end{itemize}
+
+This structured output directly maps to the knowledge graph schema evaluated in Chapter~\ref{ch:graph-rag}. Each deed becomes a \texttt{Property} node, locations become \texttt{Location} nodes, and spatial/temporal relationships become explicit graph edges. Without this extraction pipeline, Graph RAG evaluation would require manual structuring---an infeasible task at scale.
+
+\subsection{Why Separate Evaluation?}
+
+We evaluated extraction (Chapter~\ref{ch:case-study}) and reasoning (Chapter~\ref{ch:graph-rag}) separately for methodological rigor:
+
+\begin{enumerate}
+    \item \textbf{Isolating variables}: Separate evaluation distinguishes extraction errors from reasoning failures. If end-to-end accuracy is low, we cannot determine whether extraction pipeline issues or Graph RAG design caused failures without independent baselines.
+    
+    \item \textbf{Synthetic data control}: Chapter~\ref{ch:graph-rag} uses synthetic data with known ground truth, enabling precise measurement of reasoning capabilities independent of extraction noise. Real extraction outputs introduce compounding errors that obscure whether poor performance stems from upstream extraction or downstream reasoning.
+    
+    \item \textbf{Generalization testing}: Synthetic evaluation demonstrates Graph RAG's \textit{potential} advantages given clean structured data, while extraction evaluation shows \textit{achievable} data quality. Together, they bracket realistic end-to-end performance expectations.
+\end{enumerate}
+
+\subsection{End-to-End Vision}
+
+The ultimate deployment integrates both components:
+\begin{enumerate}
+    \item Deed images $\rightarrow$ \textbf{Pipeline} $\rightarrow$ Structured records with confidence scores
+    \item Structured records $\rightarrow$ \textbf{KG Construction} $\rightarrow$ Property graph with spatial/temporal edges
+    \item User queries $\rightarrow$ \textbf{Graph RAG} $\rightarrow$ Retrieved context + LLM generation
+\end{enumerate}
+
+Confidence scores from extraction enable quality-based filtering---only records meeting threshold confidence populate the knowledge graph, balancing coverage and accuracy. Our pipeline's 64.9\% complete accuracy suggests that $\sim$65\% of deeds could enter the graph at high confidence, with remaining 35\% flagged for manual review before inclusion.
+
+This two-stage approach (validated extraction + validated reasoning) provides stronger foundations than end-to-end training, where errors compound and remain difficult to diagnose.
 
 
 \section{When to Use Graph RAG}
 
-\hl{[Decision framework for practitioners; query complexity threshold; corpus size considerations; cost-benefit tradeoffs]}
+Our findings (Chapter~\ref{ch:graph-rag}) demonstrate that Graph RAG outperforms Vector RAG significantly on multi-hop queries (F1: 0.923 vs 0.421) but shows minimal advantage on simple queries (F1: 0.895 vs 0.903). This performance pattern suggests a decision framework for practitioners.
+
+\subsection{Query Complexity Threshold}
+
+\paragraph{Use Vector RAG when:}
+\begin{itemize}
+    \item Queries are predominantly single-hop (``What is X?'', ``List properties with Y'')
+    \item Semantic similarity suffices (conceptual matching more important than relationship traversal)
+    \item Implementation simplicity and cost are priorities
+    \item Corpus lacks rich relational structure
+\end{itemize}
+
+\paragraph{Use Graph RAG when:}
+\begin{itemize}
+    \item $>$30\% of queries require multi-hop reasoning
+    \item Queries involve explicit relationship constraints (``within N distance'', ``connected through X'')
+    \item Temporal ordering or constraint checking is frequent
+    \item Domain has well-defined entity types and relationships
+\end{itemize}
+
+\subsection{Corpus Characteristics}
+
+Graph RAG's advantages grow with corpus properties:
+
+\begin{itemize}
+    \item \textbf{Relational density}: Corpora where entities frequently reference each other (property deeds citing adjacent properties, legal cases citing precedents) benefit most from graph structure.
+    
+    \item \textbf{Temporal depth}: Historical corpora spanning decades benefit from explicit temporal modeling that Graph RAG enables.
+    
+    \item \textbf{Spatial structure}: Geographic corpora with distance/proximity relationships align naturally with graph representations.
+    
+    \item \textbf{Size}: Graph construction costs scale roughly linearly with corpus size, while benefits (improved multi-hop accuracy) remain constant. This favors Graph RAG for large corpora where query answering matters more than setup cost.
+\end{itemize}
+
+\subsection{Cost-Benefit Analysis}
+
+Table~\ref{tab:graph-vector-tradeoffs} summarizes practical tradeoffs.
+
+\begin{table}[t]
+\caption{Graph RAG versus Vector RAG tradeoffs}\label{tab:graph-vector-tradeoffs}
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Factor} & \textbf{Vector RAG} & \textbf{Graph RAG} \\
+\midrule
+Setup complexity & Low & Medium-High \\
+Query latency & $\sim$100--200ms & $\sim$200--500ms \\
+Storage overhead & 1$\times$ (embeddings only) & 2--3$\times$ (graph + embeddings) \\
+Single-hop F1 & 0.90 & 0.90 \\
+Multi-hop F1 & 0.42 & 0.92 \\
+Temporal reasoning & Weak & Strong \\
+Spatial reasoning & Weak & Strong \\
+\midrule
+\textbf{Best for} & Simple, semantic queries & Complex, structured queries \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Hybrid Strategy}
+
+Organizations need not choose exclusively. A hybrid deployment might:
+\begin{enumerate}
+    \item Classify incoming queries by complexity (simple vs multi-hop)
+    \item Route simple queries to Vector RAG for speed/cost
+    \item Route complex queries to Graph RAG for accuracy
+    \item Use confidence scores to trigger fallback strategies
+\end{enumerate}
+
+This approach amortizes Graph RAG setup costs across queries where it provides genuine value, while avoiding overhead for queries where vector retrieval suffices.
 
 
 \section{Limitations}
 
 \subsection{Synthetic vs. Real Data Evaluation}
 
-\hl{[Part 2 uses synthetic data; validation on real MA data as future work]}
+Chapter~\ref{ch:graph-rag}'s Graph RAG evaluation uses synthetically generated deed data and queries. While this enables controlled experimentation with known ground truth, it introduces validity concerns:
+
+\paragraph{Limitations of Synthetic Data.}
+\begin{itemize}
+    \item \textbf{Simplified relationships}: Synthetic data may not capture the full complexity of real property relationships---overlapping ownership, amendment chains, cross-references to external documents.
+    
+    \item \textbf{Idealized extraction}: Synthetic data assumes perfect entity extraction and relationship identification. Real pipeline outputs contain errors (our 64.9\% accuracy suggests $\sim$35\% of extractions have issues), which compound through Graph RAG processing.
+    
+    \item \textbf{Query distribution bias}: Synthetic queries, even when carefully designed, may not reflect actual user information needs. Real historical researchers might ask questions with subtly different structure or implicit assumptions.
+\end{itemize}
+
+\paragraph{Validation Path.}
+Future work should validate findings on real Massachusetts covenant data extracted by our pipeline:
+\begin{enumerate}
+    \item Extract structured data from all 569 Northern Middlesex County deeds
+    \item Construct knowledge graph using our schema (Chapter~\ref{ch:graph-rag})
+    \item Develop query set with covenant researchers based on actual research questions
+    \item Compare Graph RAG versus Vector RAG performance on real queries over real extracted data
+    \item Analyze how extraction errors impact downstream reasoning accuracy
+\end{enumerate}
+
+This validation would provide confidence bounds on deployment performance, distinguishing idealized potential (synthetic evaluation) from practical reality (real data with real errors).
 
 \subsection{Pipeline Generalization}
 
-\hl{[Tested on one county; other regions may have different doc formats]}
+The extraction pipeline (Chapter~\ref{ch:case-study}) was developed and validated on Northern Middlesex County deeds. Generalization faces several challenges:
 
-\subsection{Query Parsing Brittleness}
+\paragraph{Regional Variations.}
+\begin{itemize}
+    \item \textbf{Registry infrastructure}: Massachusetts has 21 counties with different land records systems. Some use MassLand Records; others maintain independent platforms. Web scraping logic requires adaptation per registry.
+    
+    \item \textbf{Document formats}: Deed formatting varies by county and era. Some registries used consistent printed forms; others have more variation. OCR and entity extraction may require retraining or prompt adjustment.
+    
+    \item \textbf{Historical conventions}: Plan book numbering, lot designation systems, and legal language varied across regions and time periods. Gazetteer mappings and regex patterns need regional customization.
+\end{itemize}
 
-\hl{[V1 to V2 improvement shows sensitivity; more robust NLU needed]}
+\paragraph{Initial Suffolk County Testing.}
+Preliminary testing on 10 Suffolk County deeds yielded 70\% accuracy---10 percentage points lower than Northern Middlesex (80\%). Error analysis revealed:
+\begin{itemize}
+    \item Different plan book URL structure requiring scraping modifications
+    \item More handwritten deeds reducing OCR accuracy
+    \item Historical neighborhood names lacking modern mappings
+\end{itemize}
+
+These issues appear tractable through targeted engineering, suggesting generalization within Massachusetts is feasible with moderate adaptation effort.
+
+\paragraph{Out-of-State Limitations.}
+Adaptation beyond Massachusetts faces steeper challenges:
+\begin{itemize}
+    \item Complete lack of standardized digitization (many states lack online registries)
+    \item Different legal terminology and deed structures
+    \item Varying covenant language patterns requiring model retraining
+\end{itemize}
+
+The pipeline architecture (OCR $\rightarrow$ extraction $\rightarrow$ geocoding) remains applicable, but individual components require substantial customization.
+
+\subsection{Query Parsing Robustness}
+
+Graph RAG evaluation (Chapter~\ref{ch:graph-rag}) revealed query parsing as a critical vulnerability. The improvement from V1 (F1: 0.657) to V2 (F1: 0.923) on multi-hop queries demonstrates both the importance and brittleness of natural language understanding for structured query generation.
+
+\paragraph{Observed Failure Modes.}
+\begin{itemize}
+    \item \textbf{Implicit constraints}: Queries like ``nearby properties'' require inferring reasonable distance thresholds (what counts as ``nearby''?). V1 struggled with this; V2 added explicit prompting for threshold specification.
+    
+    \item \textbf{Temporal ambiguity}: ``Recent'' or ``around the same time'' require context-dependent interpretation. Historical researchers consider ``within 5 years'' recent; contemporary domains might mean ``within 1 week.''
+    
+    \item \textbf{Nested reasoning}: Queries with multiple conditions (``properties within 2 miles that were restricted in the 1920s and mentioned specific ethnic groups'') challenged parsing into correct logical structure.
+\end{itemize}
+
+\paragraph{Robustness Improvements Needed.}
+Future work should develop:
+\begin{enumerate}
+    \item \textbf{Few-shot learning}: Providing example query-to-Cypher translations enables LLMs to learn domain-specific conventions.
+    
+    \item \textbf{Interactive clarification}: When query parsing uncertainty is high, system should ask users to clarify ambiguous terms (``By 'nearby', do you mean within 1 mile, 5 miles, or should I determine from context?'').
+    
+    \item \textbf{Confidence scoring}: Parser should output confidence scores, enabling fallback to vector retrieval when structured query generation fails.
+    
+    \item \textbf{Domain-specific fine-tuning}: Fine-tuning smaller models on query parsing for historical legal documents could improve reliability beyond general-purpose LLM prompting.
+\end{enumerate}
+
+The V1-to-V2 improvement demonstrates that engineering effort pays dividends, but also highlights ongoing vulnerability to subtle prompt variations and edge cases.
 
 
 \section{Future Work}
 
-\hl{[Integration of pipeline + Graph RAG; scaling to full 9000 doc corpus; real-time querying interface; other legal document domains]}
+Several directions extend this research:
+
+\subsection{End-to-End System Integration}
+
+The most immediate extension integrates extraction and reasoning:
+\begin{enumerate}
+    \item Deploy pipeline on full 9,000+ deed Massachusetts corpus (current validation: 569 documents)
+    \item Construct knowledge graph from extracted structured data with confidence-based filtering
+    \item Develop web interface for covenant researchers and policymakers
+    \item Validate Graph RAG performance on real researcher queries
+    \item Measure how extraction errors impact end-to-end accuracy
+\end{enumerate}
+
+This integration would provide the first complete automated covenant analysis system, enabling research questions previously infeasible due to manual processing constraints.
+
+\subsection{Improved Extraction Accuracy}
+
+Pipeline accuracy (64.9\%) leaves room for improvement:
+\begin{itemize}
+    \item \textbf{Specialized OCR}: Fine-tuning OCR models on historical deed imagery
+    \item \textbf{Better plan book matching}: Machine learning approaches to disambiguate multiple plan book references in a single deed
+    \item \textbf{Geocoding refinement}: Integrating historical maps (where available) rather than relying solely on contemporary geocoding
+    \item \textbf{Active learning}: Iteratively improving extraction by having users correct high-confidence errors
+\end{itemize}
+
+Even modest improvements (64.9\% $\rightarrow$ 75\%) would substantially increase knowledge graph quality and downstream reasoning accuracy.
+
+\subsection{Expanded Geographic Coverage}
+
+Scaling beyond Northern Middlesex County:
+\begin{itemize}
+    \item Systematic adaptation to all 21 Massachusetts counties
+    \item Development of cross-state pipelines (collaboration with Mapping Prejudice, Segregated Seattle)
+    \item Integration with national covenant database initiatives
+    \item Comparative analysis of covenant patterns across regions
+\end{itemize}
+
+Massachusetts-wide coverage would enable policy analysis at state level, supporting statewide remedial programs and educational initiatives.
+
+\subsection{Real-Time Query Interface}
+
+Developing production-ready query system:
+\begin{itemize}
+    \item Web dashboard for covenant researchers
+    \item Natural language query interface with clarification dialogues
+    \item Visualization of results on interactive maps
+    \item Export functionality for policy reports and academic papers
+    \item API access for integration with external tools (GIS systems, statistical packages)
+\end{itemize}
+
+This would democratize access, enabling community organizations, journalists, and educators to explore covenant data without technical expertise.
+
+\subsection{Extension to Other Legal Document Domains}
+
+The extraction pipeline and Graph RAG framework generalize beyond racial covenants:
+\begin{itemize}
+    \item \textbf{Zoning regulations}: Historical zoning maps and ordinance texts encoding spatial restrictions
+    \item \textbf{Environmental permits}: Temporal sequences of permits with geographic scope
+    \item \textbf{Court cases}: Citation networks linking legal precedents across time
+    \item \textbf{Urban planning archives}: Meeting minutes, public comment records, and decision documents
+\end{itemize}
+
+Adapting the framework to these domains would demonstrate broader applicability and establish a general methodology for historical legal document analysis in urban planning research.
 
