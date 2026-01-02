@@ -2,10 +2,7 @@
 % Master's Thesis - Yifeng  
 % Draft Version 1.0 - FRAMEWORK WITH NOTES
 
-\chapter{A Spatio-Temporal Extraction Pipeline and Case Study: Massachusetts Covenants Document Analysis}\label{ch:case-study}
-
-
-[intro and limitation] As mentioned in the last chapter, the current development of Retrieval Augmented Generation architecture allows ai get stronger ability on reasoning and for the ...  well performances, but the gap in the processing the normal, un-structed data to strcutral graphical data which allows RAG. is huge. This chapter presents our first contribution: a document processing pipeline applied to historical deed records from the Massachusetts Covenants Project. We describe the dataset, detail the extraction pipeline, and present findings demonstrating the system's effectiveness for the systematic analysis of discriminatory housing patterns.
+\chapter{A Spatial Temporal Extraction Pipeline and Case Study: Massachusetts Covenants Document Analysis}\label{ch:case-study}
 
 As discussed in the previous chapter, recent advances in Retrieval-Augmented Generation (RAG) architectures have significantly strengthened AI's reasoning capabilities and led to strong performance on complex inference tasks—provided structured, graph-based data is available. However, a major bottleneck remains: transforming ordinary, unstructured historical records into the structured representations required for effective graph-based retrieval and reasoning. This chapter addresses that challenge by presenting our first contribution: a document processing pipeline applied to historical deed records from the Massachusetts Covenants Project. We detail the dataset, describe the extraction pipeline, and present findings that demonstrate the system's effectiveness for the systematic analysis of discriminatory housing patterns.
 
@@ -16,13 +13,20 @@ As discussed in the previous chapter, recent advances in Retrieval-Augmented Gen
 
 \subsection{The Massachusetts Covenants Project}
 
-Background on MassHousing collaboration, project goals, broader dataset context (9300 around total docs, 2300 around docs contain manually review result. the data set we 
+This chapter’s research is conducted in collaboration with the Massachusetts Covenants Project, a multi-institutional initiative supported by MassHousing in partnership with the Leventhal Map and Education Center at the Boston Public Library and the MIT Department of Urban Studies and Planning (DUSP). The project leverages a massive corpus of digitized historical property deeds across Massachusetts. Its primary objective is to systematically uncover and document the history of racially restrictive covenants—private, legally binding contracts used throughout the 20th century to explicitly prohibit people of color from purchasing, leasing, or occupying residential properties.
+
+By applying advanced computational techniques to these archival records, the project seeks to transform fragmented, unstructured historical data into a comprehensive spatial database. This work not only preserves the history of institutionalized housing discrimination but also provides a data-driven foundation for understanding the long-term impact of these covenants on contemporary patterns of urban segregation and the racial wealth gap in the Commonwealth. 
+
+Transforming fragmented archival records into an accessible database, the project enables public histories, data visualizations, and strategic engagement plans to address the legacy of housing discrimination. To date, the broader effort has compiled a collection of approximately \textbf{9,300 documents}. Within this corpus, roughly \textbf{2,300 documents} have undergone manual review, providing a high-quality ground truth for understanding the spatial and temporal distribution of these restrictive clauses. 
+
 
 \subsection{Testing Subset Characteristics}
 
-Our analysis focuses on a testing subset of 569 deed records from North Middlesex County spanning 1861--1930. This subset was selected from the larger Massachusetts Covenants Project corpus based on three criteria: high covenant density, complete manual annotations enabling validation, and representative challenges typical of Massachusetts registries.
+For the purposes of this study, we utilize a specialized testing subset drawn from the \textbf{North Middlesex} County registry of deeds, spanning the period from 1861 to 1930. This subset consists of 569 records that have been meticulously processed to evaluate our information extraction and retrieval pipelines.
 
-For detailed validation experiments, we used a subset of 111 deeds with complete manual geolocation data, enabling systematic accuracy assessment against ground truth.
+To enable a systematic accuracy assessment, we identified 111 specific deeds within this corpus that feature complete, manually verified geolocation data. This ground-truth data was developed in collaboration with undergraduate researchers (UROP) from the Data + Feminism Lab at MIT, allowing for a rigorous comparison between our automated spatial extractions and validated historical locations. This high-fidelity subset serves as the primary benchmark for assessing the performance of our pipeline in recovering complex spatio-temporal information from unstructured historical text.
+
+This data is characterized by its unstructured, geo historical nature, often originating from raw legal scanning images. The subset serves as the primary case study for implementing a \textbf{Graph RAG} architecture, specifically designed to handle complex, multi-hop geospatial queries that traditional Vector RAG systems struggle to resolve. By focusing on this subset, we aim to demonstrate significant improvements in retrieval accuracy (specifically aiming for gains in F1 scores) for spatial temporal legal data.
 
 \begin{table}[t]
 \caption{Dataset characteristics}\label{tab:dataset-stats}
@@ -48,19 +52,22 @@ Towns covered & Dracut, Lowell, Chelmsford, others \\
 % ============================================
 \section{Document Processing Pipeline}\label{sec:pipeline}
 
-Figure~\ref{fig:pipeline} illustrates our end-to-end pipeline from scanned deed images to structured spatio-temporal data.
-
+Figure~\ref{fig:pipeline} illustrates our end-to-end pipeline from scanned deed images to structured spatial temporal data.
 \begin{figure}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/document processing pipeline.png}
+\includegraphics[width=1\linewidth]{thesis/figures/document processing pipeline.png}
 \caption{Document processing pipeline architecture.}\label{fig:pipeline}
 \end{figure}
 
+The whole document processing pipeline consists of three main stages: \textbf{OCR} (Optical Character Recognition) for accurately extracting text from scanned historical deed images; \textbf{Structured Data Extraction} for transforming unstructured natural language into structured records suitable for graph construction; and \textbf{Geolocation Verification} for enabling spatial-temporal reasoning through address geocoding and validation. The final objective of the pipeline is transferring a structuallized, spatial temporal awared data format from the most raw hand writing scanning document.
+
 \subsection{Optical Character Recognition}
 
-We employed Google Cloud Vision API for optical character recognition of scanned deed images. The API performs document-level text extraction, yielding raw text representations with character-level confidence scores. This choice was driven by Vision API's superior performance on historical document images compared to open-source alternatives like Tesseract, particularly for handling varied font styles and document degradation common in early 20th-century deeds.
+The first challenge in the pipeline is extracting text from typed and handwritten historical deed documents (see Figure~\ref{fig:deeds-samples}). To address this challenge, we implemented a two-stage approach: first, we employed the OCR models or API for optical character recognition of scanned deed images; second, we used the Gemini API to reconstruct and correct the extracted text, calculating a confidence score by comparing the original and reconstructed outputs. we finally choose Google Cloud Vision in our pipeline.
 
-OCR accuracy varies significantly with document quality and writing style. Initial processing revealed approximately 18\% of deeds (20 out of 111 in the validation subset) where OCR failed to extract critical plan book references due to faded text, poor scan quality, or handwritten annotations. These cases required regex fallback patterns for plan reference extraction.
+The Vision API performs document-level text extraction, yielding raw text representations with character-level confidence scores. This choice was driven by Vision API's superior performance on historical document images compared to open-source alternatives such as Tesseract, particularly for handling varied font styles and document degradation common in early 20th-century deeds.
+
+OCR accuracy varies significantly with document quality and writing style. We conducted a verification study on 20 randomly sampled deeds, finding that Google Vision API achieved approximately 91\% confidence on typed documents and 83\% on handwritten documents, compared to only 53\% for Tesseract on the same samples. Notably, across both handwritten and typed subsets, the OCR pipeline achieved 100\% accuracy in detecting racial covenant keywords—the critical terms required for downstream covenant identification.
 
 \subsection{Named Entity Extraction}
 
@@ -78,9 +85,20 @@ The extraction employs prompt engineering with few-shot examples to constrain ou
 
 \subsection{Geographic Information Extraction}
 
-To address incomplete OCR extraction, we implemented automated web scraping from MassLand Records, a public land registry database maintaining digitized plan books for Northern Middlesex County.\footnote{\url{https://massrods.com/middlesexnorth/}}
+As discussed in Chapter~\ref{ch:literature}, geographic information extraction remains both critical and challenging in spatial research. Accurate geolocation enables peer effect analysis, urban behavior studies, and informs urban development strategies and commercial planning decisions. The challenge arises from heterogeneous geographic data representations across platforms—including image maps, diagrams, textual addresses, and coordinate systems with varying standards—as well as incomplete or ambiguous address information in historical documents.
 
-For each (book, page) pair extracted in the previous step, the system:
+To address incomplete OCR extraction and ambiguous addresses, we designed a verification pipeline with iterative refinement. This two-step approach combines automated web scraping with multi-candidate geocoding to extract and validate geographic information from multiple sources.
+
+\subsubsection{Step 1: Geographic Information Extraction}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/scrapper.png}
+    \caption{MassLand Records interface and automated information extraction workflow.}
+    \label{fig:scrapper}
+\end{figure}
+
+We implemented automated web scraping from MassLand Records, a public land registry database maintaining digitized plan books for Northern Middlesex County.\footnote{\url{https://massrods.com/middlesexnorth/}} For each (book, page) pair extracted in the previous step, the system:
 
 \begin{enumerate}
     \item Initializes a headless Chrome browser instance via Selenium
@@ -94,18 +112,27 @@ For each (book, page) pair extracted in the previous step, the system:
     \end{itemize}
 \end{enumerate}
 
-A critical feature is the town validation filter, which checks whether scraped plan books belong to the correct municipality before accepting results. This addresses the challenge of identical book numbers existing across multiple towns---a problem identified during iterative testing that initially caused 16\% of street extraction errors.
+A critical feature is the town validation filter, which verifies whether scraped plan books belong to the correct municipality before accepting results. This addresses the challenge of identical book numbers existing across multiple towns—a problem identified during iterative testing that initially caused 16\% of street extraction errors.
 
-Geocoding is performed via Google Maps Geocoding API, with validation to ensure addresses belong to expected towns and exhibit geographic coherence. The system employs a multi-candidate geocoding and clustering algorithm that handles the challenge of street names appearing in multiple municipalities. For each set of street names associated with a deed, the system:
+\subsubsection{Step 2: Geographic Information Verification}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/geo-verification-loop.png}
+    \caption{Iterative geocoding verification with clustering-based spatial validation.}
+    \label{fig:geo-verification}
+\end{figure}
+
+Geocoding is performed via the OpenStreetMap Nominatim API, with validation to ensure addresses belong to expected towns and exhibit geographic coherence. The system employs a multi-candidate geocoding and clustering algorithm to handle street names appearing in multiple municipalities. For each set of street names associated with a deed, the system:
 
 \begin{enumerate}
-    \item Geocodes all street+town combinations
-    \item Filters outliers based on geographic clustering
-    \item Calculates cluster centers representing approximate property locations
+    \item Geocodes all street-town combinations, generating multiple candidate coordinates
+    \item Filters outliers based on geographic clustering using DBSCAN
+    \item Calculates cluster centroids representing approximate property locations
     \item Computes cluster radii measuring geographic spread (typically 0.3--0.8 miles)
 \end{enumerate}
 
-This neighborhood-level approach prioritizes policy-relevant precision over parcel-level accuracy, reflecting both data limitations and use case requirements.
+This neighborhood-level approach prioritizes policy-relevant precision over parcel-level accuracy, reflecting both the inherent limitations of historical address data and the analytical requirements of covenant pattern analysis.
 
 \subsection{Covenant Detection}
 
